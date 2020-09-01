@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Vocado Formalización</title>
+        <link rel="stylesheet" type="text/css" href="theme.css">
+    </head>
+    <body>
+        <script src="interface.js"></script>
+        <div style="display: table;">
+            <div style="width:200px; float: left;">&nbsp;</div>
+            <div style="width:fit-content; float: left;">
+                <div> 
+                    <span>CIQ: </span>
+                    <div id="fileCIQ" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileCIQText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <div> 
+                    <span>CIO: </span>
+                    <div id="fileCIO" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileCIOText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <div> 
+                    <span>Quotes: </span>
+                    <div id="fileQuotes" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileQuotesText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <div> 
+                    <span>Calidad: </span>
+                    <div id="fileCalidad" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileCalidadText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <div> 
+                    <span>Documents: </span>
+                    <div id="fileDocuments" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileDocumentsText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <div> 
+                    <span>Exceptions: </span>
+                    <div id="fileExceptions" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileExceptionsText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <p id="buttonSection" >
+                    <input type="button" id="calculateBotton" value="Generate" onclick="calculate()"> 
+                    <input type="button" id="getCsvKO" value="CSV no CIO KO" onclick="saveCSVKO()" disabled>
+                    <input type="button" id="getCsvOK" value="CSV no CIO OK" onclick="saveCSVOK()" disabled>
+                </p>
+                <span id="chaninInterfaces">
+                </span>
+                <div id="resultado" style="width:auto; float: left;">&nbsp;</div>
+            </div>
+            <div style="width:fit-content; float: left; margin-left: 10px;"> 
+                <span>O arrastra todo por nombre exacto: </span>
+                <div id="fileCIQ" ondrop="dropHandlerAll(event,this);" ondragover="dragOverHandler(event);" class="drop_zone_all" >
+                    <p id="fileCIQText"> Arrastra y suelta los archivos: "ciq.csv",
+                        "cio.csv",
+                        "quotes.csv",
+                        "calidad.csv",
+                        "documents.csv",
+                        "exceptions.csv"</p>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
