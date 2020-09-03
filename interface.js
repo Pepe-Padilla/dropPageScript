@@ -101,6 +101,7 @@ function calculate() {
     let sinCIO = 0;
     let sinPedido = 0;
     let sinPedidoCasos = 0;
+    let masAntigua = "null";
 
     // Limpia variables golobales
     csvResultKO = [];
@@ -134,6 +135,7 @@ function calculate() {
         let idCiq = ciq[1]; 
         let idCase = ciq[10];
         let idQuote = ciq[11];
+        let createdDate =  ciq[13];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -159,6 +161,8 @@ function calculate() {
             var hasQuotes = buscaId(idCase,arrQuotes,5);
             var hasCalidad = buscaId(idCase,arrCalidad,8);
             var hasDocuments = buscaId(idCiq,arrDocuments,2);
+            
+            if(createdDate < masAntigua) masAntigua = createdDate;
 
             // Sin CIO OK
             if(hasQuotes || hasCalidad || hasDocuments) {
@@ -182,7 +186,7 @@ function calculate() {
     console.log("Look for cases: END");
     
     // Desplegamos el resultado
-    console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"]");
+    console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
     resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + exception + sinCIO)));
     resultado.appendChild(parrafo("CIQ con CIO: "+ conPedido));
     resultado.appendChild(parrafo("Excepciones: "+ exception));
