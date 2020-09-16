@@ -153,6 +153,7 @@ function calculate() {
         // Con CIO
         if(buscaId(idCiq,arrCIO,8,true)){
             conPedido++;
+            if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
         // excepciones:
         } else if(buscaId(idCiq,arrExceptions,0)) { 
             exception++;

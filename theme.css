@@ -37,17 +37,21 @@ table {
     border-collapse: collapse;
 }
 table, th, td {
-    border: 1px solid black;
+    border: 1px solid white;
 }
 .drop_zone {
-    border: 2px solid black;
+    border: 2px solid white;
     text-align: center;
     width:  300px;
     height: 60px;
 }
 .drop_zone_all {
-    border: 2px solid black;
+    border: 2px solid white;
     text-align: center;
     width:  300px;
     height: 100px;
+}
+
+body {
+    background-color: #CCCCCC;
 }
