@@ -106,6 +106,7 @@ function calculate() {
     // Limpia variables golobales
     csvResultKO = [];
     csvResultOK = [];
+    ciqSigned = [];
 
     // validaciones
     if(!files.has("fileCIQ") || 
@@ -135,7 +136,8 @@ function calculate() {
         let idCiq = ciq[1]; 
         let idCase = ciq[10];
         let idQuote = ciq[11];
-        let createdDate =  ciq[13];
+        let status = ciq[12];
+        let createdDate = ciq[13];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -175,6 +177,7 @@ function calculate() {
                 csvResultOK.push(ciqOK.join(","));
             // Sin CIO KO
             } else {
+                if(status.localeCompare("Signed") == 0) ciqSigned.push(status);
                 sinPedidoCasos++;
                 csvResultKO.push(ciq.join(","));
                 if (!cioResult.has(idCase)) {
@@ -193,6 +196,7 @@ function calculate() {
     resultado.appendChild(parrafo("Excepciones: "+ exception));
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
     resultado.appendChild(parrafo("CIQ sin CIO KO: "+ sinPedidoCasos + " (con Case Repetido:"+sinPedido+")"));
+    resultado.appendChild(tablaSigned(ciqSigned));
     resultado.appendChild(tablaResultante(cioResult));
 
     // activamos la descarga de CSVs
@@ -226,6 +230,28 @@ function tablaResultante(cioResult){
     
     return table;
 }
+
+// Arama la tabla con el resultado
+function tablaSigned(ciqSigned){
+    let table = document.createElement("table");
+
+    // THead
+    let thead = table.createTHead();
+    let hrow = thead.insertRow();
+    hrow.insertCell().appendChild(document.createTextNode("Id"));
+    hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
+    
+    // resto de datos
+    let tBody = table.createTBody();
+    for (let ciqStat of ciqSigned.values()) {
+        let row = tBody.insertRow();
+        row.insertCell().appendChild(document.createTextNode(ciqStat));
+        row.insertCell().appendChild(document.createTextNode("Formalized"));
+    }
+    
+    return table;
+}
+
 
 // regresa un parrafo DOM para agregar a algún otro elemento del DOM con el mensaje de entrada
 function parrafo(mensaje) {
