@@ -177,7 +177,7 @@ function calculate() {
                 csvResultOK.push(ciqOK.join(","));
             // Sin CIO KO
             } else {
-                if(status.localeCompare("Signed") == 0) ciqSigned.push(status);
+                if(status.localeCompare("Signed") == 0) ciqSigned.push(idCiq);
                 sinPedidoCasos++;
                 csvResultKO.push(ciq.join(","));
                 if (!cioResult.has(idCase)) {
