@@ -211,6 +211,8 @@ function tablaResultante(cioResult){
     // THead
     let thead = table.createTHead();
     let hrow = thead.insertRow();
+    hrow.insertCell().appendChild(document.createTextNode("CaseNumber"));
+    hrow.insertCell().appendChild(document.createTextNode(" "));
     hrow.insertCell().appendChild(document.createTextNode("Id"));
     hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
     hrow.insertCell().appendChild(document.createTextNode(" "));
@@ -219,8 +221,10 @@ function tablaResultante(cioResult){
     
     // resto de datos
     let tBody = table.createTBody();
-    for (let idQuote of cioResult.values()) {
+    for (let [caseNumber, idQuote] of cioResult.entries()) {
         let row = tBody.insertRow();
+        row.insertCell().appendChild(document.createTextNode("'"+caseNumber+"',"));
+        row.insertCell().appendChild(document.createTextNode(""));
         row.insertCell().appendChild(document.createTextNode(idQuote));
         row.insertCell().appendChild(document.createTextNode("In-Transit"));
         row.insertCell().appendChild(document.createTextNode(""));
