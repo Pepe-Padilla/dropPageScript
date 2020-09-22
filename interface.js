@@ -136,8 +136,8 @@ function calculate() {
         let idCiq = ciq[1];
         let idCase = ciq[10];
         let idQuote = ciq[11];
-        let status = ciq[12];
-        let createdDate = ciq[13];
+        let status = ciq[13];
+        let createdDate = ciq[14];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
