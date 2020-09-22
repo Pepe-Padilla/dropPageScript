@@ -133,7 +133,7 @@ function calculate() {
     console.log("Look for cases: INI");
     for(let ciq of arrCIQ) {
 
-        let idCiq = ciq[1]; 
+        let idCiq = ciq[1];
         let idCase = ciq[10];
         let idQuote = ciq[11];
         let status = ciq[12];
