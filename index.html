@@ -22,9 +22,15 @@
                     </div>
                 </div>
                 <div> 
-                    <span>Quotes: </span>
-                    <div id="fileQuotes" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
-                        <p id="fileQuotesText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    <span>CIO Hijos: </span>
+                    <div id="fileCIOH" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileCIOHText"> Arrastra y suelta uno archivo a esta zona ...</p>
+                    </div>
+                </div>
+                <div> 
+                    <span>NEQ: </span>
+                    <div id="fileNEQ" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileNEQText"> Arrastra y suelta uno archivo a esta zona ...</p>
                     </div>
                 </div>
                 <div> 
@@ -48,6 +54,7 @@
                 <p id="buttonSection" >
                     <input type="button" id="calculateBotton" value="Generate" onclick="calculate()"> 
                     <input type="button" id="getCsvKO" value="CSV no CIO KO" onclick="saveCSVKO()" disabled>
+                    <input type="button" id="getCsvH" value="CSV no CIO H" onclick="saveCSVH()" disabled>
                     <input type="button" id="getCsvOK" value="CSV no CIO OK" onclick="saveCSVOK()" disabled>
                 </p>
                 <span id="chaninInterfaces">
@@ -57,9 +64,11 @@
             <div style="width:fit-content; float: left; margin-left: 10px;"> 
                 <span>O arrastra todo por nombre exacto: </span>
                 <div id="fileCIQ" ondrop="dropHandlerAll(event,this);" ondragover="dragOverHandler(event);" class="drop_zone_all" >
-                    <p id="fileCIQText"> Arrastra y suelta los archivos: "ciq.csv",
+                    <p id="fileCIQText"> Arrastra y suelta los archivos: 
+                        "ciq.csv",
                         "cio.csv",
-                        "quotes.csv",
+                        "cioh.csv",
+                        "neq.csv",
                         "calidad.csv",
                         "documents.csv",
                         "exceptions.csv"</p>

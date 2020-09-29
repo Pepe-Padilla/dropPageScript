@@ -2,6 +2,7 @@
 var files = new Map(); // Datos de un fichero
 var csvResultKO = []; // Resultado guardado para descargar el CSV final
 var csvResultOK = [];
+var csvREsultH = [];
 
 //Drop invididual
 function dropHandler(ev,element) {
@@ -54,7 +55,8 @@ function dropHandlerAll(ev) {
                 let elementId = "";
                 if (file.name == "ciq.csv") elementId = "fileCIQ";
                 else if (file.name == "cio.csv") elementId = "fileCIO";
-                else if (file.name == "quotes.csv") elementId = "fileQuotes";
+                else if (file.name == "cioh.csv") elementId = "fileCIOH";
+                else if (file.name == "neq.csv") elementId = "fileNEQ";
                 else if (file.name == "calidad.csv") elementId = "fileCalidad";
                 else if (file.name == "documents.csv") elementId = "fileDocuments";
                 else if (file.name == "exceptions.csv") elementId = "fileExceptions";
@@ -71,11 +73,12 @@ function dropHandlerAll(ev) {
             var file = ev.dataTransfer.files[i];
             let elementId = "";
             if (file.name == "ciq.csv") elementId = "fileCIQ";
-            else if (file.name == "cio.csv") elementId = "fileCIO";
-            else if (file.name == "quotes.csv") elementId = "fileQuotes";
-            else if (file.name == "calidad.csv") elementId = "fileCalidad";
-            else if (file.name == "documents.csv") elementId = "fileDocuments";
-            else if (file.name == "exceptions.csv") elementId = "fileExceptions";
+                else if (file.name == "cio.csv") elementId = "fileCIO";
+                else if (file.name == "cioh.csv") elementId = "fileCIOH";
+                else if (file.name == "neq.csv") elementId = "fileNEQ";
+                else if (file.name == "calidad.csv") elementId = "fileCalidad";
+                else if (file.name == "documents.csv") elementId = "fileDocuments";
+                else if (file.name == "exceptions.csv") elementId = "fileExceptions";
             if (elementId == "") continue;
             fileCSVToArray(file,elementId);
             console.log('saving file.name[' + file.name + '] on[' + elementId + ']');
@@ -91,12 +94,14 @@ function dropHandlerAll(ev) {
 function calculate() {
     document.getElementById("calculateBotton").disabled = true;
     document.getElementById("getCsvKO").disabled = true;
+    document.getElementById("getCsvH").disabled = true;
     document.getElementById("getCsvOK").disabled = true;
     console.log("calculating...");
     var resultado = document.getElementById("resultado");
     resultado.innerHTML = "";
     let cioResult = new Map();
     let exception = 0;
+    let ciohs = 0;
     let conPedido = 0;
     let sinCIO = 0;
     let sinPedido = 0;
@@ -111,7 +116,8 @@ function calculate() {
     // validaciones
     if(!files.has("fileCIQ") || 
     !files.has("fileCIO") || 
-    !files.has("fileQuotes") || 
+    !files.has("fileCIOH") || 
+    !files.has("fileNEQ") || 
     !files.has("fileCalidad") || 
     !files.has("fileDocuments") || 
     !files.has("fileExceptions") ) {
@@ -125,7 +131,8 @@ function calculate() {
     // Va lo bueno
     var arrCIQ = files.get("fileCIQ");
     var arrCIO = files.get("fileCIO");
-    var arrQuotes = files.get("fileQuotes");
+    var arrCIOH = files.get("fileCIOH");
+    var arrNEQ = files.get("fileNEQ");
     var arrCalidad = files.get("fileCalidad");
     var arrDocuments = files.get("fileDocuments");
     var arrExceptions = files.get("fileExceptions");
@@ -134,10 +141,10 @@ function calculate() {
     for(let ciq of arrCIQ) {
 
         let idCiq = ciq[1];
-        let idCase = ciq[10];
-        let idQuote = ciq[11];
-        let status = ciq[13];
-        let createdDate = ciq[14];
+        let idCase = ciq[5];
+        let idQuote = ciq[3];
+        let status = ciq[6];
+        let createdDate = ciq[7];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -153,25 +160,29 @@ function calculate() {
         }
 
         // Con CIO
-        if(buscaId(idCiq,arrCIO,8,true)){
+        if(buscaId(idCiq,arrCIO,2)){
             conPedido++;
             if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
         // excepciones:
         } else if(buscaId(idCiq,arrExceptions,0)) { 
             exception++;
+        // CIOH
+        } else if(buscaId(idCase,arrCIOH,5)) {
+            ciohs++;
+            csvREsultH.push(ciq.join(","));
         // Sin CIO
         } else {
-            var hasQuotes = buscaId(idCase,arrQuotes,5);
+            var hasNEQ = buscaId(idCase,arrNEQ,2);
             var hasCalidad = buscaId(idCase,arrCalidad,8);
             var hasDocuments = buscaId(idCiq,arrDocuments,2);
             
             if(createdDate < masAntigua) masAntigua = createdDate;
 
             // Sin CIO OK
-            if(hasQuotes || hasCalidad || hasDocuments) {
+            if(hasNEQ || hasCalidad || hasDocuments) {
                 sinCIO++;
                 var ciqOK = ciq;
-                ciqOK.push(hasQuotes);
+                ciqOK.push(hasNEQ);
                 ciqOK.push(hasCalidad);
                 ciqOK.push(hasDocuments);
                 csvResultOK.push(ciqOK.join(","));
@@ -190,10 +201,11 @@ function calculate() {
     console.log("Look for cases: END");
     
     // Desplegamos el resultado
-    console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
-    resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + exception + sinCIO)));
+    console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) CIOH["+ciohs+"] OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
+    resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + exception + sinCIO + ciohs)));
     resultado.appendChild(parrafo("CIQ con CIO: "+ conPedido));
     resultado.appendChild(parrafo("Excepciones: "+ exception));
+    resultado.appendChild(parrafo("CIQ sin CIO H: "+ ciohs));
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
     resultado.appendChild(parrafo("CIQ sin CIO KO: "+ sinPedidoCasos + " (con Case Repetido:"+sinPedido+")"));
     resultado.appendChild(tablaSigned(ciqSigned));
@@ -201,6 +213,7 @@ function calculate() {
 
     // activamos la descarga de CSVs
     document.getElementById("getCsvKO").disabled = false;
+    document.getElementById("getCsvH").disabled = false;
     document.getElementById("getCsvOK").disabled = false;
 }
 
@@ -266,21 +279,28 @@ function parrafo(mensaje) {
 }
 
 // función para buscar el id y limpia el array si esta en orden  (eficientiza )
-function buscaId(id,arrCSV,column,ordered) {
-    ordered = (ordered||false);
-    for(var i=1;i<arrCSV.length;i++) {
-        var row = arrCSV[i];
-        var compare = id.toLowerCase().localeCompare(row[column].toLowerCase());
-        if(compare == 0) {
-            return true;
-        }
-        // Si la tabla esta ordenada quitamos los renglones que sabemos que no se necesitan buscar de nuevo
-        if(ordered && compare < 0) { 
-            arrCSV.splice(1,i-1);
-            return false;
-        }
-    }
-    return false;
+function buscaId(id,arrCSV,column) {
+    return binarySearch(id,arrCSV,column, 0, arrCSV.length-1);
+}
+
+// busqueda binaria recursiva FTW
+function binarySearch(id,arrCSV,column, start, end){
+    // condición base, no encontrado
+    if(start > end) return false;
+
+    // busqueda de mid y comparación
+    let mid = Math.floor((start + end) /2);
+    let row = arrCSV[mid];
+    var compare = id.toLowerCase().localeCompare(row[column].toLowerCase());
+
+    // encontrado!
+    if(compare == 0) return true;
+
+    // menor que mid
+    if(compare < 0) return binarySearch(id,arrCSV,column, start, mid-1);
+
+    // mayor que mid
+    return binarySearch(id,arrCSV,column, mid-1, end);
 }
 
 // Aquí convertimos el fichero en texto e inicializamos las variables para trabajar los datos
@@ -299,14 +319,53 @@ function fileCSVToArray(file,elementId) {
                 // sort de javascript que el de salesforce aveces va mal
                 return a[1].toLowerCase().localeCompare(b[1].toLowerCase());
             });
-        }
-        if(elementId == "fileCIO") {
+        } else if(elementId == "fileCIO") {
+            arrprocesado.sort(function(a,b) {
+                // encabezados siempre arriba
+                if(a[1] == "Id") return -1;
+                if(b[1] == "Id") return 1;
+                // sort de javascript que el de salesforce aveces va mal
+                return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
+            });
+        } else if(elementId == "fileCIOH") {
+            arrprocesado.sort(function(a,b) {
+                // encabezados siempre arriba
+                if(a[1] == "Id") return -1;
+                if(b[1] == "Id") return 1;
+                // sort de javascript que el de salesforce aveces va mal
+                return a[5].toLowerCase().localeCompare(b[5].toLowerCase());
+            });
+        } else if(elementId == "fileNEQ") {
+            arrprocesado.sort(function(a,b) {
+                // encabezados siempre arriba
+                if(a[1] == "Id") return -1;
+                if(b[1] == "Id") return 1;
+                // sort de javascript que el de salesforce aveces va mal
+                return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
+            });
+        } else if(elementId == "fileCalidad") {
             arrprocesado.sort(function(a,b) {
                 // encabezados siempre arriba
                 if(a[1] == "Id") return -1;
                 if(b[1] == "Id") return 1;
                 // sort de javascript que el de salesforce aveces va mal
                 return a[8].toLowerCase().localeCompare(b[8].toLowerCase());
+            });
+        } else if(elementId == "fileDocuments") {
+            arrprocesado.sort(function(a,b) {
+                // encabezados siempre arriba
+                if(a[1] == "Id") return -1;
+                if(b[1] == "Id") return 1;
+                // sort de javascript que el de salesforce aveces va mal
+                return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
+            });
+        } else if(elementId == "fileExceptions") {
+            arrprocesado.sort(function(a,b) {
+                // encabezados siempre arriba
+                if(a[0] == "Id") return -1;
+                if(b[0] == "Id") return 1;
+                // sort de javascript que el de salesforce aveces va mal
+                return a[0].toLowerCase().localeCompare(b[0].toLowerCase());
             });
         }
         files.set(elementId,arrprocesado);
@@ -340,6 +399,25 @@ function saveCSVKO() {
     
     var text = csvResultKO.join("\n");
     const filename = "CIQFormalizadosSinCIO_KO.csv";
+
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+
+    element.style.display = 'none';
+    var buttonSelection = document.getElementById("buttonSection");
+    buttonSelection.appendChild(element);
+    
+    element.click();
+    buttonSelection.removeChild(element);
+}
+
+// Crea el CSV ya filtrado
+function saveCSVH() {
+    console.log("save csv CIO Hijos");
+    
+    var text = csvREsultH.join("\n");
+    const filename = "CIQsinCIOconHermanos.csv";
 
     var element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
