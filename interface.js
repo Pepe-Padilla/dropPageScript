@@ -55,6 +55,7 @@ function dropHandlerAll(ev) {
                 let elementId = "";
                 if (file.name == "ciq.csv") elementId = "fileCIQ";
                 else if (file.name == "cio.csv") elementId = "fileCIO";
+                else if (file.name == "ciqh.csv") elementId = "fileCIQH";
                 else if (file.name == "cioh.csv") elementId = "fileCIOH";
                 else if (file.name == "neq.csv") elementId = "fileNEQ";
                 else if (file.name == "calidad.csv") elementId = "fileCalidad";
@@ -74,6 +75,7 @@ function dropHandlerAll(ev) {
             let elementId = "";
             if (file.name == "ciq.csv") elementId = "fileCIQ";
                 else if (file.name == "cio.csv") elementId = "fileCIO";
+                else if (file.name == "ciqh.csv") elementId = "fileCIQH";
                 else if (file.name == "cioh.csv") elementId = "fileCIOH";
                 else if (file.name == "neq.csv") elementId = "fileNEQ";
                 else if (file.name == "calidad.csv") elementId = "fileCalidad";
@@ -101,7 +103,6 @@ function calculate() {
     resultado.innerHTML = "";
     let cioResult = new Map();
     let exception = 0;
-    let ciohs = 0;
     let conPedido = 0;
     let sinCIO = 0;
     let sinPedido = 0;
@@ -116,6 +117,7 @@ function calculate() {
     // validaciones
     if(!files.has("fileCIQ") || 
     !files.has("fileCIO") || 
+    !files.has("fileCIQH") || 
     !files.has("fileCIOH") || 
     !files.has("fileNEQ") || 
     !files.has("fileCalidad") || 
@@ -131,6 +133,7 @@ function calculate() {
     // Va lo bueno
     var arrCIQ = files.get("fileCIQ");
     var arrCIO = files.get("fileCIO");
+    var arrCIQH = files.get("fileCIQH");
     var arrCIOH = files.get("fileCIOH");
     var arrNEQ = files.get("fileNEQ");
     var arrCalidad = files.get("fileCalidad");
@@ -151,7 +154,9 @@ function calculate() {
             csvResultKO.push(ciq.join(","));
             
             var ciqOK = ciq;
-            ciqOK.push("Has_Quotes");
+            ciqOK.push("Has_CIQ_Childs");
+            ciqOK.push("Has_CIO_Childs");
+            ciqOK.push("Has_NEQ");
             ciqOK.push("Has_Calidad");
             ciqOK.push("Has_Documents");
             csvResultOK.push(ciqOK.join(","));
@@ -166,12 +171,10 @@ function calculate() {
         // excepciones:
         } else if(buscaId(idCiq,arrExceptions,0)) { 
             exception++;
-        // CIOH
-        } else if(buscaId(idCase,arrCIOH,5)) {
-            ciohs++;
-            csvREsultH.push(ciq.join(","));
         // Sin CIO
         } else {
+            var hasCIQH = buscaId(idCase,arrCIQH,5)
+            var hasCIOH = buscaId(idCase,arrCIOH,5);
             var hasNEQ = buscaId(idCase,arrNEQ,2);
             var hasCalidad = buscaId(idCase,arrCalidad,8);
             var hasDocuments = buscaId(idCiq,arrDocuments,2);
@@ -179,9 +182,11 @@ function calculate() {
             if(createdDate < masAntigua) masAntigua = createdDate;
 
             // Sin CIO OK
-            if(hasNEQ || hasCalidad || hasDocuments) {
+            if(hasCIQH || hasCIOH || hasNEQ || hasCalidad || hasDocuments) {
                 sinCIO++;
                 var ciqOK = ciq;
+                ciqOK.push(hasCIQH);
+                ciqOK.push(hasCIOH);
                 ciqOK.push(hasNEQ);
                 ciqOK.push(hasCalidad);
                 ciqOK.push(hasDocuments);
@@ -201,11 +206,10 @@ function calculate() {
     console.log("Look for cases: END");
     
     // Desplegamos el resultado
-    console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) CIOH["+ciohs+"] OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
-    resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + exception + sinCIO + ciohs)));
+    console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
+    resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + exception + sinCIO)));
     resultado.appendChild(parrafo("CIQ con CIO: "+ conPedido));
     resultado.appendChild(parrafo("Excepciones: "+ exception));
-    resultado.appendChild(parrafo("CIQ sin CIO H: "+ ciohs));
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
     resultado.appendChild(parrafo("CIQ sin CIO KO: "+ sinPedidoCasos + " (con Case Repetido:"+sinPedido+")"));
     resultado.appendChild(tablaSigned(ciqSigned));
@@ -213,7 +217,6 @@ function calculate() {
 
     // activamos la descarga de CSVs
     document.getElementById("getCsvKO").disabled = false;
-    document.getElementById("getCsvH").disabled = false;
     document.getElementById("getCsvOK").disabled = false;
 }
 
@@ -327,6 +330,14 @@ function fileCSVToArray(file,elementId) {
                 // sort de javascript que el de salesforce aveces va mal
                 return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
             });
+        } else if(elementId == "fileCIQH") {
+            arrprocesado.sort(function(a,b) {
+                // encabezados siempre arriba
+                if(a[1] == "Id") return -1;
+                if(b[1] == "Id") return 1;
+                // sort de javascript que el de salesforce aveces va mal
+                return a[5].toLowerCase().localeCompare(b[5].toLowerCase());
+            });
         } else if(elementId == "fileCIOH") {
             arrprocesado.sort(function(a,b) {
                 // encabezados siempre arriba
@@ -399,25 +410,6 @@ function saveCSVKO() {
     
     var text = csvResultKO.join("\n");
     const filename = "CIQFormalizadosSinCIO_KO.csv";
-
-    var element = document.createElement('a');
-    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-    element.setAttribute('download', filename);
-
-    element.style.display = 'none';
-    var buttonSelection = document.getElementById("buttonSection");
-    buttonSelection.appendChild(element);
-    
-    element.click();
-    buttonSelection.removeChild(element);
-}
-
-// Crea el CSV ya filtrado
-function saveCSVH() {
-    console.log("save csv CIO Hijos");
-    
-    var text = csvREsultH.join("\n");
-    const filename = "CIQsinCIOconHermanos.csv";
 
     var element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
