@@ -96,7 +96,6 @@ function dropHandlerAll(ev) {
 function calculate() {
     document.getElementById("calculateBotton").disabled = true;
     document.getElementById("getCsvKO").disabled = true;
-    document.getElementById("getCsvH").disabled = true;
     document.getElementById("getCsvOK").disabled = true;
     console.log("calculating...");
     var resultado = document.getElementById("resultado");
@@ -147,7 +146,7 @@ function calculate() {
         let idCase = ciq[5];
         let idQuote = ciq[3];
         let status = ciq[6];
-        let createdDate = ciq[7];
+        let createdDate = ciq[11];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -303,7 +302,7 @@ function binarySearch(id,arrCSV,column, start, end){
     if(compare < 0) return binarySearch(id,arrCSV,column, start, mid-1);
 
     // mayor que mid
-    return binarySearch(id,arrCSV,column, mid-1, end);
+    return binarySearch(id,arrCSV,column, mid+1, end);
 }
 
 // Aquí convertimos el fichero en texto e inicializamos las variables para trabajar los datos
