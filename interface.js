@@ -21,7 +21,7 @@ function dropHandler(ev,element) {
             }
             fileCSVToArray(file,element.id+"");
             console.log('saving file.name['+file.name+'] on['+element.id+']');
-            document.getElementById(element.id+"Text").innerHTML=file.name;
+            document.getElementById(element.id+"Text").innerHTML= "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
         }
 
     // Use DataTransfer interface to access the file(s)
@@ -33,7 +33,7 @@ function dropHandler(ev,element) {
         }
         fileCSVToArray(file,element.id+"");
         console.log('saving file.name['+file.name+'] on['+element.id+']');
-        document.getElementById(element.id+"Text").innerHTML=file.name;
+        document.getElementById(element.id+"Text").innerHTML= "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
     } 
 
     // Pass event to removeDragData for cleanup
@@ -64,7 +64,7 @@ function dropHandlerAll(ev) {
                 if (elementId == "") continue;
                 fileCSVToArray(file,elementId);
                 console.log('saving file.name[' + file.name + '] on[' + elementId + ']');
-                document.getElementById(elementId + "Text").innerHTML = file.name;
+                document.getElementById(elementId + "Text").innerHTML = "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
             }
         }
 
@@ -84,7 +84,7 @@ function dropHandlerAll(ev) {
             if (elementId == "") continue;
             fileCSVToArray(file,elementId);
             console.log('saving file.name[' + file.name + '] on[' + elementId + ']');
-            document.getElementById(elementId + "Text").innerHTML = file.name;
+            document.getElementById(elementId + "Text").innerHTML = "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
         }
     } 
 
@@ -164,19 +164,19 @@ function calculate() {
         }
 
         // Con CIO
-        if(buscaId(idCiq,arrCIO,2)){
+        if(buscaId(idCiq,arrCIO,getKeyCol("cio"))){
             conPedido++;
             if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
         // excepciones:
-        } else if(buscaId(idCiq,arrExceptions,0)) { 
+        } else if(buscaId(idCiq,arrExceptions,getKeyCol("exceptions"))) { 
             exception++;
         // Sin CIO
         } else {
-            var hasCIQH = buscaId(idCase,arrCIQH,5)
-            var hasCIOH = buscaId(idCase,arrCIOH,5);
-            var hasNEQ = buscaId(idCase,arrNEQ,2);
-            var hasCalidad = buscaId(idCase,arrCalidad,8);
-            var hasDocuments = buscaId(idCiq,arrDocuments,2);
+            var hasCIQH = buscaId(idCase,arrCIQH,getKeyCol("ciqh"))
+            var hasCIOH = buscaId(idCase,arrCIOH,getKeyCol("cioh"));
+            var hasNEQ = buscaId(idCase,arrNEQ,getKeyCol("neq"));
+            var hasCalidad = buscaId(idCase,arrCalidad,getKeyCol("calidad"));
+            var hasDocuments = buscaId(idCiq,arrDocuments,getKeyCol("documents"));
             
             if(createdDate < masAntigua) masAntigua = createdDate;
 
@@ -309,80 +309,63 @@ function binarySearch(id,arrCSV,column, start, end){
 function fileCSVToArray(file,elementId) {
     console.log("Reading: "+elementId);
     var fr = new FileReader();
-    fr.onload = function() { 
+    fr.onload = function() {
         var fileText = fr.result;
         console.log("Procesing: "+elementId);
         var arrprocesado = CSVToArray(fileText);
-        if(elementId == "fileCIQ") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[1].toLowerCase().localeCompare(b[1].toLowerCase());
-            });
-        } else if(elementId == "fileCIO") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
-            });
-        } else if(elementId == "fileCIQH") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[5].toLowerCase().localeCompare(b[5].toLowerCase());
-            });
-        } else if(elementId == "fileCIOH") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[5].toLowerCase().localeCompare(b[5].toLowerCase());
-            });
-        } else if(elementId == "fileNEQ") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
-            });
-        } else if(elementId == "fileCalidad") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[8].toLowerCase().localeCompare(b[8].toLowerCase());
-            });
-        } else if(elementId == "fileDocuments") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[1] == "Id") return -1;
-                if(b[1] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[2].toLowerCase().localeCompare(b[2].toLowerCase());
-            });
-        } else if(elementId == "fileExceptions") {
-            arrprocesado.sort(function(a,b) {
-                // encabezados siempre arriba
-                if(a[0] == "Id") return -1;
-                if(b[0] == "Id") return 1;
-                // sort de javascript que el de salesforce aveces va mal
-                return a[0].toLowerCase().localeCompare(b[0].toLowerCase());
-            });
-        }
+		let idCol = 1;
+		let keyCol = getKeyCol(elementId);
+		
+		arrprocesado.sort(function(a,b) {
+            // encabezados siempre arriba
+            if(a[idCol] == "Id") return -1;
+            if(b[idCol] == "Id") return 1;
+            // sort de javascript que el de salesforce va como el culo
+            return a[keyCol].toLowerCase().localeCompare(b[keyCol].toLowerCase());
+        });
+		
         files.set(elementId,arrprocesado);
         console.log("Done: "+elementId);
+		document.getElementById(elementId + "Text").innerHTML = file.name+" <img src='img/check.png' width='20' height='20' >";
     }
     fr.readAsText(file);
 }
+
+function getKeyCol(elementId) {
+	switch(elementId) {
+		case "fileCIQ":
+		case "ciq":
+			return 1;
+			break;
+		case "fileCIO":
+		case "fileNEQ":
+		case "fileDocuments":
+		case "cio":
+		case "neq":
+		case "documents":
+			return 2;
+			break;
+		case "fileCIQH":
+		case "fileCIOH":
+		case "ciqh":
+		case "cioh":
+			return 5;
+			break;
+		case "fileCalidad":
+		case "calidad":
+			return 8;
+			break;
+		case "fileExceptions":
+		case "exceptions":
+			return 0;
+			break;
+		default:
+			return 0;
+			break;
+		
+	}
+}
+
 
 // donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
 function CSVToArray(strData, strDelimiter) {

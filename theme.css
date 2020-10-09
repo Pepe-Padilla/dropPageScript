@@ -43,13 +43,13 @@ table, th, td {
     border: 2px solid white;
     text-align: center;
     width:  300px;
-    height: 60px;
+    height: 70px;
 }
 .drop_zone_all {
     border: 2px solid white;
     text-align: center;
     width:  300px;
-    height: 100px;
+    height: 240px;
 }
 
 body {
