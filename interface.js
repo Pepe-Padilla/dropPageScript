@@ -1,8 +1,17 @@
 // Variables globales
 var files = new Map(); // Datos de un fichero
-var csvResultKO = []; // Resultado guardado para descargar el CSV final
-var csvResultOK = [];
-var csvREsultH = [];
+var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos KO
+var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
+
+function fileHandler(file,elementId) {
+	if(file.name.substr(file.name.length - 4) != ".csv" ) {
+        alert("La extensión debe ser .csv");
+        return false;
+    }
+    fileCSVToArray(file,elementId+"");
+    console.log('saving file.name['+file.name+'] on['+elementId+']');
+    document.getElementById(elementId+"Text").innerHTML= "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
+}
 
 //Drop invididual
 function dropHandler(ev,element) {
@@ -10,32 +19,20 @@ function dropHandler(ev,element) {
 
     // Prevent default behavior (Prevent file from being opened)
     ev.preventDefault();
-
+	
+	var file = null;
     if (ev.dataTransfer.items) {
         // Use DataTransferItemList interface to access the file(s)
         if (ev.dataTransfer.items[0].kind === 'file') {
-            var file = ev.dataTransfer.items[0].getAsFile();
-            if(file.name.substr(file.name.length - 4) != ".csv" ) {
-                alert("La extensión debe ser .csv");
-                return false;
-            }
-            fileCSVToArray(file,element.id+"");
-            console.log('saving file.name['+file.name+'] on['+element.id+']');
-            document.getElementById(element.id+"Text").innerHTML= "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
+            file = ev.dataTransfer.items[0].getAsFile();
         }
-
     // Use DataTransfer interface to access the file(s)
     } else if (ev.dataTransfer.files.length > 0) {
-        var file = ev.dataTransfer.files[0];
-        if(file.name.substr(file.name.length - 4) != ".csv" ) {
-            alert("La extensión debe ser .csv");
-            return false;
-        }
-        fileCSVToArray(file,element.id+"");
-        console.log('saving file.name['+file.name+'] on['+element.id+']');
-        document.getElementById(element.id+"Text").innerHTML= "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
-    } 
-
+        file = ev.dataTransfer.files[0];
+    }
+	
+	fileHandler(file,element.id);
+	
     // Pass event to removeDragData for cleanup
     removeDragData(ev);
 }
@@ -52,19 +49,9 @@ function dropHandlerAll(ev) {
         for (var i = 0; i < ev.dataTransfer.items.length; i++) {
             if (ev.dataTransfer.items[i].kind === 'file') {
                 var file = ev.dataTransfer.items[i].getAsFile();
-                let elementId = "";
-                if (file.name == "ciq.csv") elementId = "fileCIQ";
-                else if (file.name == "cio.csv") elementId = "fileCIO";
-                else if (file.name == "ciqh.csv") elementId = "fileCIQH";
-                else if (file.name == "cioh.csv") elementId = "fileCIOH";
-                else if (file.name == "neq.csv") elementId = "fileNEQ";
-                else if (file.name == "calidad.csv") elementId = "fileCalidad";
-                else if (file.name == "documents.csv") elementId = "fileDocuments";
-                else if (file.name == "exceptions.csv") elementId = "fileExceptions";
+                let elementId = dafaultElementId(file.name);
                 if (elementId == "") continue;
-                fileCSVToArray(file,elementId);
-                console.log('saving file.name[' + file.name + '] on[' + elementId + ']');
-                document.getElementById(elementId + "Text").innerHTML = "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
+				fileHandler(file,elementId);
             }
         }
 
@@ -72,19 +59,9 @@ function dropHandlerAll(ev) {
     } else {
         for (var i = 0; i < ev.dataTransfer.files.length; i++) {
             var file = ev.dataTransfer.files[i];
-            let elementId = "";
-            if (file.name == "ciq.csv") elementId = "fileCIQ";
-                else if (file.name == "cio.csv") elementId = "fileCIO";
-                else if (file.name == "ciqh.csv") elementId = "fileCIQH";
-                else if (file.name == "cioh.csv") elementId = "fileCIOH";
-                else if (file.name == "neq.csv") elementId = "fileNEQ";
-                else if (file.name == "calidad.csv") elementId = "fileCalidad";
-                else if (file.name == "documents.csv") elementId = "fileDocuments";
-                else if (file.name == "exceptions.csv") elementId = "fileExceptions";
+            let elementId = dafaultElementId(file.name);
             if (elementId == "") continue;
-            fileCSVToArray(file,elementId);
-            console.log('saving file.name[' + file.name + '] on[' + elementId + ']');
-            document.getElementById(elementId + "Text").innerHTML = "LOADING FILE...  <img src='img/pocessing.png' width='20' height='20' >";
+			fileHandler(file,elementId);
         }
     } 
 
@@ -92,11 +69,28 @@ function dropHandlerAll(ev) {
     removeDragData(ev);
 }
 
+function dafaultElementId(fileName) {
+	let elementId = "";
+	if (fileName == "ciq.csv") elementId = "fileCIQ";
+    else if (fileName == "cio.csv") elementId = "fileCIO";
+    else if (fileName == "ciqh.csv") elementId = "fileCIQH";
+    else if (fileName == "cioh.csv") elementId = "fileCIOH";
+    else if (fileName == "neq.csv") elementId = "fileNEQ";
+    else if (fileName == "calidad.csv") elementId = "fileCalidad";
+    else if (fileName == "documents.csv") elementId = "fileDocuments";
+    else if (fileName == "exceptions.csv") elementId = "fileExceptions";
+	
+	return elementId;
+}
+
 // Valida y calcula el resultado
 function calculate() {
+	// Desactivamos botones
     document.getElementById("calculateBotton").disabled = true;
     document.getElementById("getCsvKO").disabled = true;
     document.getElementById("getCsvOK").disabled = true;
+	
+	// variables locales
     console.log("calculating...");
     var resultado = document.getElementById("resultado");
     resultado.innerHTML = "";
@@ -114,22 +108,17 @@ function calculate() {
     ciqSigned = [];
 
     // validaciones
-    if(!files.has("fileCIQ") || 
-    !files.has("fileCIO") || 
-    !files.has("fileCIQH") || 
-    !files.has("fileCIOH") || 
-    !files.has("fileNEQ") || 
-    !files.has("fileCalidad") || 
-    !files.has("fileDocuments") || 
-    !files.has("fileExceptions") ) {
+    if(!files.has("fileCIQ") || !files.has("fileCIO") || !files.has("fileCIQH") || 
+    !files.has("fileCIOH") || !files.has("fileNEQ") || !files.has("fileCalidad") || 
+    !files.has("fileDocuments") || !files.has("fileExceptions") ) {
         document.getElementById("calculateBotton").disabled = false;
         let res = document.createTextNode("Faltan archivos o aun se estan procesando");
         resultado.appendChild(res);
         return false;
     }
     console.log("Valitations OK");
-
-    // Va lo bueno
+	
+	// obtenermos la info de los ficheros en variables locales
     var arrCIQ = files.get("fileCIQ");
     var arrCIO = files.get("fileCIO");
     var arrCIQH = files.get("fileCIQH");
@@ -139,6 +128,7 @@ function calculate() {
     var arrDocuments = files.get("fileDocuments");
     var arrExceptions = files.get("fileExceptions");
     
+    // Va lo bueno
     console.log("Look for cases: INI");
     for(let ciq of arrCIQ) {
 
@@ -166,7 +156,7 @@ function calculate() {
         // Con CIO
         if(buscaId(idCiq,arrCIO,getKeyCol("cio"))){
             conPedido++;
-            if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
+			if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
         // excepciones:
         } else if(buscaId(idCiq,arrExceptions,getKeyCol("exceptions"))) { 
             exception++;
@@ -211,10 +201,9 @@ function calculate() {
     resultado.appendChild(parrafo("Excepciones: "+ exception));
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
     resultado.appendChild(parrafo("CIQ sin CIO KO: "+ sinPedidoCasos + " (con Case Repetido:"+sinPedido+")"));
-    resultado.appendChild(tablaSigned(ciqSigned));
     resultado.appendChild(tablaResultante(cioResult));
 
-    // activamos la descarga de CSVs
+    // reactivamos botones de descarga de CSVs
     document.getElementById("getCsvKO").disabled = false;
     document.getElementById("getCsvOK").disabled = false;
 }
@@ -226,8 +215,6 @@ function tablaResultante(cioResult){
     // THead
     let thead = table.createTHead();
     let hrow = thead.insertRow();
-    hrow.insertCell().appendChild(document.createTextNode("CaseNumber"));
-    hrow.insertCell().appendChild(document.createTextNode(" "));
     hrow.insertCell().appendChild(document.createTextNode("Id"));
     hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
     hrow.insertCell().appendChild(document.createTextNode(" "));
@@ -238,8 +225,6 @@ function tablaResultante(cioResult){
     let tBody = table.createTBody();
     for (let [caseNumber, idQuote] of cioResult.entries()) {
         let row = tBody.insertRow();
-        row.insertCell().appendChild(document.createTextNode("'"+caseNumber+"',"));
-        row.insertCell().appendChild(document.createTextNode(""));
         row.insertCell().appendChild(document.createTextNode(idQuote));
         row.insertCell().appendChild(document.createTextNode("In-Transit"));
         row.insertCell().appendChild(document.createTextNode(""));
@@ -249,28 +234,6 @@ function tablaResultante(cioResult){
     
     return table;
 }
-
-// Arama la tabla con el resultado
-function tablaSigned(ciqSigned){
-    let table = document.createElement("table");
-
-    // THead
-    let thead = table.createTHead();
-    let hrow = thead.insertRow();
-    hrow.insertCell().appendChild(document.createTextNode("Id"));
-    hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
-    
-    // resto de datos
-    let tBody = table.createTBody();
-    for (let ciqStat of ciqSigned.values()) {
-        let row = tBody.insertRow();
-        row.insertCell().appendChild(document.createTextNode(ciqStat));
-        row.insertCell().appendChild(document.createTextNode("Formalized"));
-    }
-    
-    return table;
-}
-
 
 // regresa un parrafo DOM para agregar a algún otro elemento del DOM con el mensaje de entrada
 function parrafo(mensaje) {
@@ -331,6 +294,7 @@ function fileCSVToArray(file,elementId) {
     fr.readAsText(file);
 }
 
+// Acada resultado del fichero hay una columna clave de comparación aqui se define ese campo
 function getKeyCol(elementId) {
 	switch(elementId) {
 		case "fileCIQ":
@@ -338,16 +302,16 @@ function getKeyCol(elementId) {
 			return 1;
 			break;
 		case "fileCIO":
-		case "fileNEQ":
-		case "fileDocuments":
 		case "cio":
+		case "fileNEQ":
 		case "neq":
+		case "fileDocuments":
 		case "documents":
 			return 2;
 			break;
 		case "fileCIQH":
-		case "fileCIOH":
 		case "ciqh":
+		case "fileCIOH":
 		case "cioh":
 			return 5;
 			break;
@@ -365,7 +329,6 @@ function getKeyCol(elementId) {
 		
 	}
 }
-
 
 // donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
 function CSVToArray(strData, strDelimiter) {
