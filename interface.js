@@ -296,37 +296,23 @@ function fileCSVToArray(file,elementId) {
 
 // Acada resultado del fichero hay una columna clave de comparación aqui se define ese campo
 function getKeyCol(elementId) {
-	switch(elementId) {
-		case "fileCIQ":
+	var eId = elementId.toLowerCase();
+	if(eId.startsWith("file")) eId = eId.substring(4);
+	switch(eId) {
 		case "ciq":
 			return 1;
-			break;
-		case "fileCIO":
 		case "cio":
-		case "fileNEQ":
 		case "neq":
-		case "fileDocuments":
 		case "documents":
 			return 2;
-			break;
-		case "fileCIQH":
 		case "ciqh":
-		case "fileCIOH":
 		case "cioh":
 			return 5;
-			break;
-		case "fileCalidad":
 		case "calidad":
 			return 8;
-			break;
-		case "fileExceptions":
 		case "exceptions":
-			return 0;
-			break;
 		default:
 			return 0;
-			break;
-		
 	}
 }
 
