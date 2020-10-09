@@ -2,6 +2,7 @@
 var files = new Map(); // Datos de un fichero
 var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos KO
 var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
+var dropState = true; // Estado en que se puede agregar ficheros
 
 function fileHandler(file,elementId) {
 	if(file.name.substr(file.name.length - 4) != ".csv" ) {
@@ -15,10 +16,12 @@ function fileHandler(file,elementId) {
 
 //Drop invididual
 function dropHandler(ev,element) {
-    console.log('File(s) dropped');
+	console.log('File(s) dropped');
 
     // Prevent default behavior (Prevent file from being opened)
     ev.preventDefault();
+	
+	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
 	
 	var file = null;
     if (ev.dataTransfer.items) {
@@ -39,10 +42,12 @@ function dropHandler(ev,element) {
 
 // Drop de varios ficheros
 function dropHandlerAll(ev) {
-    console.log('File(s) dropped');
+	console.log('File(s) dropped');
 
     // Prevent default behavior (Prevent file from being opened)
     ev.preventDefault();
+	
+    if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
 
     if (ev.dataTransfer.items) {
         // Use DataTransferItemList interface to access the file(s)
@@ -87,6 +92,7 @@ function dafaultElementId(fileName) {
 function calculate() {
 	// Desactivamos botones
     document.getElementById("calculateBotton").disabled = true;
+	dropState = false;
     document.getElementById("getCsvKO").disabled = true;
     document.getElementById("getCsvOK").disabled = true;
 	
@@ -112,7 +118,8 @@ function calculate() {
     !files.has("fileCIOH") || !files.has("fileNEQ") || !files.has("fileCalidad") || 
     !files.has("fileDocuments") || !files.has("fileExceptions") ) {
         document.getElementById("calculateBotton").disabled = false;
-        let res = document.createTextNode("Faltan archivos o aun se estan procesando");
+		dropState = true;
+        let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
         resultado.appendChild(res);
         return false;
     }
