@@ -142,8 +142,8 @@ function calculate() {
         let idCiq = ciq[1];
         let idCase = ciq[5];
         let idQuote = ciq[3];
-        let status = ciq[6];
-        let createdDate = ciq[11];
+        let status = ciq[9];
+        let createdDate = ciq[14];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -193,7 +193,7 @@ function calculate() {
             if(createdDate < masAntigua) masAntigua = createdDate;
 
             // Sin CIO OK
-            if(hasCIQH || hasCIOH || hasNEQ || hasCalidad || hasDocuments) {
+            if(hasCIQH || hasCIOH || hasNEQ || (hasCalidad && hasNEQ) || (hasDocuments && hasNEQ)) {
                 // campos CIQH
                 var statusCIQH = "";
                 var formalizedFlgCIQH = "";
@@ -216,7 +216,7 @@ function calculate() {
                     unconditionalHiringBS = ciqh[13];
                 }
 
-                if(hasCIOH) {
+                if(hasNEQ) {
                     var neq = arrNEQ[iNEQ];
                     statusNEQ = neq[6];
                     formalizedFlgNEQ = neq[4];
@@ -379,7 +379,7 @@ function getKeyCol(elementId) {
 		case "cioh":
 			return 5;
 		case "calidad":
-			return 8;
+			return 7;
 		case "exceptions":
 		default:
 			return 0;
