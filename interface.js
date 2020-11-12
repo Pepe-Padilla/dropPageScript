@@ -290,7 +290,7 @@ function tablaResultante(cioResult){
     for (let [caseNumber, idQuote] of cioResult.entries()) {
         let row = tBody.insertRow();
         row.insertCell().appendChild(document.createTextNode(idQuote));
-        row.insertCell().appendChild(document.createTextNode("In-Transit"));
+        row.insertCell().appendChild(document.createTextNode("In-Transit")); //In Review
         row.insertCell().appendChild(document.createTextNode(""));
         row.insertCell().appendChild(document.createTextNode(idQuote));
         row.insertCell().appendChild(document.createTextNode("CRM_Transfer_Pending"));
