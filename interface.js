@@ -218,9 +218,9 @@ function calculate() {
                     // 5 Calidad/Docs In-Transit Pending_after_BO	"Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
                     // 6 Calidad/Docs In-Transit Signature_pending "Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
                     // 7 Calidad/Docs In-Transit Signed "Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
-                    // 8 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
-                    // 9 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
-                    // 10 ya hay CIOs hermanos "Ya hay cios en esta necesidad"**
+                    // 8 ya hay CIOs hermanos "Ya hay cios en esta necesidad"**
+                    // 9 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
+                    // 10 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
                     //-- warnings de relanzamiento:
                     // 50 muchas CIQS "Muchos ciqs en la misma necesidad"
                     // 51 FI_CI_FLG_Validaciones_OK__c = false "Validaciones de CC y CD saltadas"
@@ -236,35 +236,29 @@ function calculate() {
                         let ciqId = ciqh[getKeyCol("ciq")];
                         let ciqStatus = ciqh[getKeyCol("ciqStatus")];
                         let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
-                        let bono = ciqh[getKeyCol("ciqBono")];
-                        let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")];
+                        let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
+                        let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
                         let flagValidacionesOK = ciqh[getKeyCol("ciqValidacionesOK")].toLowerCase();
-                        let flagCCNe = ciqh[getKeyCol("ciqCCNe")].toLowerCase();
-                        let flagCCOK = ciqh[getKeyCol("ciqCCOK")].toLowerCase();
-                        let flagCDNe = ciqh[getKeyCol("ciqCDNe")].toLowerCase();
-                        let flagCDOK = ciqh[getKeyCol("ciqCDOK")].toLowerCase();
                         let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
 
-                        if(bono.toLowerCase() == "true" && bonoIncondicional.toLowerCase()== "false" && errorCode > 2) errorCode = 2;
+                        if(bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
                         else if(ciqStatus == "Pending" && errorCode > 3) errorCode = 3;
                         else if(ciqStatus == "In Review" && ciqQuoteStatus == "In-Transit" && errorCode > 4) errorCode = 4;
                         else if(ciqStatus == "Pending_after_BO" && ciqQuoteStatus == "In-Transit" && errorCode > 5) errorCode = 5;
                         else if(ciqStatus == "Signature_pending" && ciqQuoteStatus == "In-Transit" && errorCode > 6) errorCode = 6;
                         else if(ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit" && errorCode > 7) errorCode = 7;
-                        else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 8) errorCode = 8;
-                        else if(ciqStatus == "Formalized" && 
-                            (flagValidacionesOK != "true" || (flagCCNe == "true" && flagCCOK != "true") || (flagCDNe == "true" && flagCDOK != "true"))
-                            && errorCode > 51) errorCode = 51;
+                        else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 9) errorCode = 9;
+                        else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
                         else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
-                        else if(ciqStatus == "Formalized" && errorCode > 52) {
+                        else if(ciqStatus == "Formalized" && errorCode > 53) {
                             // Calidad 
                             if(ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
-                            ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved") errorCode = 52;
+                            ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved") errorCode = 53;
                             // Docs
                             for(var idocu=0;idocu<documents.length; idocu++) {
                                 let docu = documents[idocu];
                                 let docuCiqId = docu[getKeyCol("documentacionCiqId")];
-                                if(docuCiqId == ciqId) errorCode = 52; 
+                                if(docuCiqId == ciqId) errorCode = 53; 
                             }
                         }
                     }
@@ -274,12 +268,12 @@ function calculate() {
                         let neqLocal =  neqs[ineq];
                         let neqStatus = neqLocal[getKeyCol("neqStatus")];
                         if(neqStatus == "Pending" && errorCode > 3) errorCode = 3;
-                        else if(neqStatus != "Closed" && neqStatus != "CRM_Transfer_Pending" && errorCode > 9) errorCode = 9;
+                        else if(neqStatus != "Closed" && neqStatus != "CRM_Transfer_Pending" && errorCode > 10) errorCode = 10;
                     }
 
                     // Otras validaciones
                     if(ciqs.length > 6 && errorCode > 50) errorCode = 50;
-                    if(cios.length > 0 && errorCode > 10)  errorCode = 10;
+                    if(cios.length > 0 && errorCode > 8)  errorCode = 8;
                     
                     histo = getHistoricos(historicos,idCiq);
                 }
@@ -363,10 +357,10 @@ function getHistoricos(historicos,idCiq) {
     let msgCase = "";
     for(var i=0;i<historicos.length;i++) {
         var hist = historicos[i];
-        if(i=0) msgCase = hist[getKeyCol("historicoCase")];
+        if(i==0) msgCase = hist[hist.length-1];
         if(hist[getKeyCol("ciq")]==idCiq) {
-            msgCiq = hist[getKeyCol("historicoCiq")];
-            msgCase = hist[getKeyCol("historicoCase")];
+            msgCiq = hist[hist.length-2];
+            msgCase = hist[hist.length-1];
         }
     }
     return [msgCiq,msgCase];
@@ -448,6 +442,7 @@ function binarySearch(id,arrCSV,column, start, end){
     let mid = Math.floor((start + end) /2);
     let row = arrCSV[mid];
     var compare = id.toLowerCase().localeCompare(row[column].toLowerCase());
+    if(mid==0) compare=1; // mid=0 es el encabezado por eso siempre hay que regresar 1
     
     // encontrado!
     if(compare == 0) return mid;
@@ -509,27 +504,15 @@ function getKeyCol(elementId) {
         case "ciqcratedate":
             return 14;
         case "ciqbono":
-            return 31;
+            return 29;
         case "ciqbonoincondicional":
-            return 32;
-        case "ciqccne":
-            return 36;
-        case "ciqccok":
-            return 37;
-        case "ciqcdne":
-            return 38;
-        case "ciqcdok":
-            return 39;
+            return 30;
         case "ciqvalidacionesok":
-            return 42;
+            return 40;
         case "ciqcalidad":
-            return 44;
-        case "historicociq":
-            return 47;
-        case "historicocase":
-            return 48;
+            return 42;
 		default:
-            console.log("getKeyCol["+elementId+"]");
+            console.log("getKeyCol["+elementId+"] desconocida");
 			return 0;
 	}
 }
