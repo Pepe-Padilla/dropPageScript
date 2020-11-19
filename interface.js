@@ -218,14 +218,16 @@ function calculate() {
                     // 5 Calidad/Docs In-Transit Pending_after_BO	"Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
                     // 6 Calidad/Docs In-Transit Signature_pending "Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
                     // 7 Calidad/Docs In-Transit Signed "Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
-                    // 8 ya hay CIOs hermanos "Ya hay cios en esta necesidad"**
-                    // 9 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
-                    // 10 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
+                    // 8 Casos de calidad Pendientes saltados sobre Formalizados "Tienen casos de calidad pendientes sobre formalizados"
+                    // 9 Casos de calidad Pendientes saltados sobre Cancelados "Tienen casos de calidad pendientes"
+                    // 10 Casos de calidad Documentación pendientes "Tienen casos de documentación pendientes"
+                    // 11 ya hay CIOs hermanos "Ya hay cios en esta necesidad"**
+                    // 12 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
+                    // 13 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
                     //-- warnings de relanzamiento:
                     // 50 muchas CIQS "Muchos ciqs en la misma necesidad"
                     // 51 FI_CI_FLG_Validaciones_OK__c = false "Validaciones de CC y CD saltadas"
                     // 52 CRM_Transfer_Pending Cancelled "Quote CRM_Transfer_Pending sobre CIQ Cancelled"
-                    // 53 Casos de calidad/docu en vuelo sobre formalizados "Tienen casos de calidad o documentación pendientes"
                     // 100 OK relanzar "Relanzar"
 
                     // Validaciones sonbre ciqs
@@ -247,20 +249,14 @@ function calculate() {
                         else if(ciqStatus == "Pending_after_BO" && ciqQuoteStatus == "In-Transit" && errorCode > 5) errorCode = 5;
                         else if(ciqStatus == "Signature_pending" && ciqQuoteStatus == "In-Transit" && errorCode > 6) errorCode = 6;
                         else if(ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit" && errorCode > 7) errorCode = 7;
-                        else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 9) errorCode = 9;
+                        else if(ciqStatus == "Formalized" && ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
+                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && errorCode > 8) errorCode = 8;
+                        else if(ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
+                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && errorCode > 9) errorCode = 9;
+                        else if(documents.length > 0 && errorCode > 10) errorCode = 10;
+                        else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 12) errorCode = 12;
                         else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
                         else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
-                        else if(ciqStatus == "Formalized" && errorCode > 53) {
-                            // Calidad 
-                            if(ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
-                            ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved") errorCode = 53;
-                            // Docs
-                            for(var idocu=0;idocu<documents.length; idocu++) {
-                                let docu = documents[idocu];
-                                let docuCiqId = docu[getKeyCol("documentacionCiqId")];
-                                if(docuCiqId == ciqId) errorCode = 53; 
-                            }
-                        }
                     }
                     
                     // validaciones del NEQ
@@ -268,12 +264,12 @@ function calculate() {
                         let neqLocal =  neqs[ineq];
                         let neqStatus = neqLocal[getKeyCol("neqStatus")];
                         if(neqStatus == "Pending" && errorCode > 3) errorCode = 3;
-                        else if(neqStatus != "Closed" && neqStatus != "CRM_Transfer_Pending" && errorCode > 10) errorCode = 10;
+                        else if(neqStatus != "Closed" && neqStatus != "CRM_Transfer_Pending" && errorCode > 13) errorCode = 13;
                     }
 
                     // Otras validaciones
                     if(ciqs.length > 6 && errorCode > 50) errorCode = 50;
-                    if(cios.length > 0 && errorCode > 8)  errorCode = 8;
+                    if(cios.length > 0 && errorCode > 11)  errorCode = 11;
                     
                     histo = getHistoricos(historicos,idCiq);
                 }
@@ -332,19 +328,23 @@ function getMensaje(errorCode) {
         case 7:
             return "["+errorCode+"] Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion";
         case 8:
-            return "["+errorCode+"] Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado";
+            return "["+errorCode+"] Tienen casos de calidad pendientes sobre formalizados";
         case 9:
-            return "["+errorCode+"] Necesidad con Quote en estado inconsitente";
+            return "["+errorCode+"] Tienen casos de calidad pendientes";
         case 10:
+            return "["+errorCode+"] Tienen casos de documentación pendientes";
+        case 11:
             return "["+errorCode+"] Ya hay cios en esta necesidad";
+        case 12:
+            return "["+errorCode+"] Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado";
+        case 13:
+            return "["+errorCode+"] Necesidad con Quote en estado inconsistente";
         case 50:
             return "["+errorCode+"] Muchos ciqs en la misma necesidad";
         case 51:
             return "["+errorCode+"] Validaciones de CC y CD saltadas";
         case 52:
             return "["+errorCode+"] Quote CRM_Transfer_Pending sobre CIQ Cancelled";
-        case 53:
-            return "["+errorCode+"] Tienen casos de calidad o documentacion pendientes sobre formalizados";
         case 100:
             return "["+errorCode+"] OK relanzar";
         default:
@@ -357,10 +357,14 @@ function getHistoricos(historicos,idCiq) {
     let msgCase = "";
     for(var i=0;i<historicos.length;i++) {
         var hist = historicos[i];
-        if(i==0) msgCase = hist[hist.length-1];
+
+        var caseHist = hist.length-1; // buscamos el último informado
+        while(hist[caseHist]=="")caseHist--;
+
+        if(i==0) msgCase = hist[caseHist];
         if(hist[getKeyCol("ciq")]==idCiq) {
-            msgCiq = hist[hist.length-2];
-            msgCase = hist[hist.length-1];
+            msgCiq = hist[caseHist-1];
+            msgCase = hist[caseHist];
         }
     }
     return [msgCiq,msgCase];
@@ -473,7 +477,7 @@ function fileCSVToArray(file,elementId) {
 			
 		}, 10);
     }
-    fr.readAsText(file);
+    fr.readAsText(file); //,"ISO-8859-1");
 }
 
 // A cada resultado del fichero hay una columna clave de comparación aqui se define ese campo
