@@ -3,6 +3,7 @@ var files = new Map(); // Datos de un fichero
 var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos KO
 var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
 var dropState = true; // Estado en que se puede agregar ficheros
+var codeResult = [];
 
 function fileHandler(file,elementId) {
 	if(file.name.substr(file.name.length - 4) != ".csv" ) {
@@ -195,9 +196,6 @@ function calculate() {
                 if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
             // Sin CIO
             } else {
-                // obtener la fecha más atigua
-                if(createdDate < masAntigua) masAntigua = createdDate;
-
                 let errorCode = 100;
                 let histo=[];
                 if(idCase == "") errorCode = 0;
@@ -224,6 +222,8 @@ function calculate() {
                     // 11 ya hay CIOs hermanos "Ya hay cios en esta necesidad"**
                     // 12 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
                     // 13 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
+                    // 14 FI_NEQ_FLG_SendOrder__c "Proceso de creación de CIO finalizado"
+                    // 15 "Bonos Sociales no generan CIO sobre no formalizados"
                     //-- warnings de relanzamiento:
                     // 50 muchas CIQS "Muchos ciqs en la misma necesidad"
                     // 51 FI_CI_FLG_Validaciones_OK__c = false "Validaciones de CC y CD saltadas"
@@ -242,19 +242,24 @@ function calculate() {
                         let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
                         let flagValidacionesOK = ciqh[getKeyCol("ciqValidacionesOK")].toLowerCase();
                         let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
+                        let ciqFlgSendOrder = ciqh[getKeyCol("ciqFlgSendOrder")].toLowerCase();
 
-                        if(bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
+                        if(ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
                         else if(ciqStatus == "Pending" && errorCode > 3) errorCode = 3;
                         else if(ciqStatus == "In Review" && ciqQuoteStatus == "In-Transit" && errorCode > 4) errorCode = 4;
                         else if(ciqStatus == "Pending_after_BO" && ciqQuoteStatus == "In-Transit" && errorCode > 5) errorCode = 5;
                         else if(ciqStatus == "Signature_pending" && ciqQuoteStatus == "In-Transit" && errorCode > 6) errorCode = 6;
                         else if(ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit" && errorCode > 7) errorCode = 7;
                         else if(ciqStatus == "Formalized" && ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
-                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && errorCode > 8) errorCode = 8;
+                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved"  && 
+						ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica" && errorCode > 8) errorCode = 8;
                         else if(ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
-                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && errorCode > 9) errorCode = 9;
+                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && 
+						ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica" && errorCode > 9) errorCode = 9;
                         else if(documents.length > 0 && errorCode > 10) errorCode = 10;
                         else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 12) errorCode = 12;
+                        else if(ciqStatus == "Formalized" && ciqFlgSendOrder != "false" && errorCode > 14) errorCode = 14;
+						else if(ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 15) errorCode = 15;
                         else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
                         else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
                     }
@@ -273,6 +278,9 @@ function calculate() {
                     
                     histo = getHistoricos(historicos,idCiq);
                 }
+
+                // obtener la fecha más atigua, sin contar los codigos de negocio que no se espera progresen 0, 1  y 2
+                if(createdDate < masAntigua && errorCode != 0 && errorCode != 1 && errorCode != 2) masAntigua = createdDate;
 
                 if(errorCode<50) {
                     sinCIO++;
@@ -300,6 +308,7 @@ function calculate() {
     
     // Desplegamos el resultado
     console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
+    console.log(codeResult);
     resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + sinCIO)));
     resultado.appendChild(parrafo("CIQ con CIO: "+ conPedido));
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
@@ -312,6 +321,8 @@ function calculate() {
 }
 
 function getMensaje(errorCode) {
+    if(!codeResult[errorCode]) codeResult[errorCode]=0;
+    codeResult[errorCode]++;
     switch(errorCode) {
         case 0:
             return "["+errorCode+"] CIQ sin Caso asignado";
@@ -339,6 +350,10 @@ function getMensaje(errorCode) {
             return "["+errorCode+"] Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado";
         case 13:
             return "["+errorCode+"] Necesidad con Quote en estado inconsistente";
+        case 14:
+            return "["+errorCode+"] Proceso de creación de CIO finalizado";
+		case 15:
+            return "["+errorCode+"] Bonos Sociales no generan CIO sobre no formalizados"
         case 50:
             return "["+errorCode+"] Muchos ciqs en la misma necesidad";
         case 51:
@@ -507,6 +522,8 @@ function getKeyCol(elementId) {
             return 11;
         case "ciqcratedate":
             return 14;
+        case "ciqflgsendorder":
+            return 20;
         case "ciqbono":
             return 29;
         case "ciqbonoincondicional":
@@ -516,7 +533,7 @@ function getKeyCol(elementId) {
         case "ciqcalidad":
             return 42;
 		default:
-            console.log("getKeyCol["+elementId+"] desconocida");
+            throw "getKeyCol["+elementId+"] desconocida";
 			return 0;
 	}
 }
