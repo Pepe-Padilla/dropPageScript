@@ -5,7 +5,7 @@
         <link rel="stylesheet" type="text/css" href="theme.css">
     </head>
     <body>
-        <script src="interface.js"></script>
+        <script src="interface.js" charset="UTF-8"></script>
         <div style="display: table;">
             <div style="width:200px; float: left;">&nbsp;</div>
             <div style="width:fit-content; float: left;">
@@ -22,27 +22,9 @@
                     </div>
                 </div>
                 <div> 
-                    <span>CIQ hijos: </span>
-                    <div id="fileCIQH" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
-                        <p id="fileCIQHText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
-                    </div>
-                </div>
-                <div> 
-                    <span>CIO Hijos: </span>
-                    <div id="fileCIOH" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
-                        <p id="fileCIOHText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
-                    </div>
-                </div>
-                <div> 
                     <span>NEQ: </span>
                     <div id="fileNEQ" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
                         <p id="fileNEQText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
-                    </div>
-                </div>
-                <div> 
-                    <span>Calidad: </span>
-                    <div id="fileCalidad" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
-                        <p id="fileCalidadText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
                     </div>
                 </div>
                 <div> 
@@ -55,6 +37,12 @@
                     <span>Exceptions: </span>
                     <div id="fileExceptions" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
                         <p id="fileExceptionsText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
+                    </div>
+                </div>
+                <div> 
+                    <span>Historico: </span>
+                    <div id="fileHistorico" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileHistoricoText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
                     </div>
                 </div>
                 <p id="buttonSection" >
@@ -72,10 +60,8 @@
                     <p> Drag and drop here...
 						<br>ciq.csv
 						<br>cio.csv
-						<br>ciqh.csv
-						<br>cioh.csv
 						<br>neq.csv
-						<br>calidad.csv
+						<br>historico.csv
 						<br>documents.csv
 						<br>exceptions.csv
 						<br><br><img src='img/doc.png' width='20' height='20' ><img src='img/doc.png' width='20' height='20' ><img src='img/doc.png' width='20' height='20' >
