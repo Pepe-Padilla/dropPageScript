@@ -247,7 +247,7 @@ function calculate() {
                         let ciqFlgSendOrder = ciqh[getKeyCol("ciqFlgSendOrder")].toLowerCase();
                         let ciqorderasset = ciqh[getKeyCol("ciqorderasset")];
                         let ciqasset = ciqh[getKeyCol("ciqasset")];
-                        let ciqseltype = ciqhgetKeyCol("ciqseltype")
+                        let ciqseltype = ciqh[getKeyCol("ciqseltype")];
 
                         if(ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
                         else if(ciqStatus == "Pending" && errorCode > 3) errorCode = 3;
@@ -306,11 +306,9 @@ function calculate() {
                         sinPedido++;
                         cioResult.set(idCase, idQuote);
                     }
-                    // Segundo informe
+                    // Datos del segundo informe
                     segundoInformeId.push(idCiq);
-                    if(!segundoInformeAsset.has(asset)) {
-                        segundoInformeAsset.push(asset);
-                    }
+                    if(asset != "") segundoInformeAsset.push(asset);
                 }
             }
         }
