@@ -4,6 +4,8 @@ var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos
 var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
 var dropState = true; // Estado en que se puede agregar ficheros
 var codeResult = [];
+var segundoInformeId = [];
+var segundoInformeAsset = [];
 
 function fileHandler(file,elementId) {
 	if(file.name.substr(file.name.length - 4) != ".csv" ) {
@@ -175,6 +177,7 @@ function calculate() {
         let idQuote = ciq[getKeyCol("ciqQuote")];
         let status = ciq[getKeyCol("ciqStatus")];
         let createdDate = ciq[getKeyCol("ciqCrateDate")];
+        let asset = ciq[getKeyCol("ciqorderasset")];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -235,7 +238,6 @@ function calculate() {
                         let ciqh =ciqs[iciq];
 
                         // variables
-                        let ciqId = ciqh[getKeyCol("ciq")];
                         let ciqStatus = ciqh[getKeyCol("ciqStatus")];
                         let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
                         let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
@@ -243,6 +245,9 @@ function calculate() {
                         let flagValidacionesOK = ciqh[getKeyCol("ciqValidacionesOK")].toLowerCase();
                         let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
                         let ciqFlgSendOrder = ciqh[getKeyCol("ciqFlgSendOrder")].toLowerCase();
+                        let ciqorderasset = ciqh[getKeyCol("ciqorderasset")];
+                        let ciqasset = ciqh[getKeyCol("ciqasset")];
+                        let ciqseltype = ciqhgetKeyCol("ciqseltype")
 
                         if(ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
                         else if(ciqStatus == "Pending" && errorCode > 3) errorCode = 3;
@@ -259,6 +264,7 @@ function calculate() {
                         else if(documents.length > 0 && errorCode > 10) errorCode = 10;
                         else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 12) errorCode = 12;
                         else if(ciqStatus == "Formalized" && ciqFlgSendOrder != "false" && errorCode > 14) errorCode = 14;
+                        else if(ciqStatus == "Formalized" && ciqseltype != "A" && (ciqasset == "" || ciqasset != ciqorderasset)) errorCode = 15;
 						else if(ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 15) errorCode = 15;
                         else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
                         else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
@@ -300,6 +306,11 @@ function calculate() {
                         sinPedido++;
                         cioResult.set(idCase, idQuote);
                     }
+                    // Segundo informe
+                    segundoInformeId.push(idCiq);
+                    if(!segundoInformeAsset.has(asset)) {
+                        segundoInformeAsset.push(asset);
+                    }
                 }
             }
         }
@@ -314,6 +325,8 @@ function calculate() {
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
     resultado.appendChild(parrafo("CIQ sin CIO KO: "+ sinPedidoCasos + " (con Case Repetido:"+sinPedido+")"));
     resultado.appendChild(tablaResultante(cioResult));
+    resultado.appendChild(parrafo("Datos para segundo informe"));
+    resultado.appendChild(tablaSegundoInforme(segundoInformeId,segundoInformeAsset));
 
     // reactivamos botones de descarga de CSVs
     document.getElementById("getCsvKO").disabled = false;
@@ -353,7 +366,9 @@ function getMensaje(errorCode) {
         case 14:
             return "["+errorCode+"] Proceso de creación de CIO finalizado";
 		case 15:
-            return "["+errorCode+"] Bonos Sociales no generan CIO sobre no formalizados"
+            return "["+errorCode+"] Bonos Sociales no generan CIO sobre no formalizados";
+        case 16:
+            return "["+errorCode+"] Asset mal asociado en movimiento distinto a alta";
         case 50:
             return "["+errorCode+"] Muchos ciqs en la misma necesidad";
         case 51:
@@ -407,6 +422,35 @@ function tablaResultante(cioResult){
         row.insertCell().appendChild(document.createTextNode(""));
         row.insertCell().appendChild(document.createTextNode(idQuote));
         row.insertCell().appendChild(document.createTextNode("CRM_Transfer_Pending"));
+    }
+    
+    return table;
+}
+
+function tablaSegundoInforme(segundoInformeId, segundoInformeAsset) {
+    let table = document.createElement("table");
+
+    // THead
+    let thead = table.createTHead();
+    let hrow = thead.insertRow();
+    hrow.insertCell().appendChild(document.createTextNode("Id"));
+    hrow.insertCell().appendChild(document.createTextNode(" "));
+    hrow.insertCell().appendChild(document.createTextNode("Assets"));
+    
+    // resto de datos
+    let tBody = table.createTBody();
+    let idMax = segundoInformeId.length;
+    let assetMax = segundoInformeAsset.length;
+    let max = Math.max(idMax, assetMax);
+    for (var i=0;i<max;i++) {
+        let row = tBody.insertRow();
+        var idVal = "";
+        if(i<idMax) idVal = segundoInformeId[i];
+        var assetVal = "";
+        if(i<assetMax) assetVal = segundoInformeAsset[i];
+        row.insertCell().appendChild(document.createTextNode(idVal));
+        row.insertCell().appendChild(document.createTextNode(""));
+        row.insertCell().appendChild(document.createTextNode(assetVal));
     }
     
     return table;
@@ -504,37 +548,41 @@ function getKeyCol(elementId) {
         	return 1;
 		case "cio":
         case "neq":
-        case "ciqquote":
         case "documentacionciqid":
-			return 2;
+        case "ciqstatus":
+            return 2;
+        case "ciqquote":
 		case "exceptions":
             return 3;
-        case "ciqcase":
         case "ciocase":
             return 4;
+        case "ciqcase":
+            return 5;
         case "neqstatus":
-            return 6;
         case "ciqquotestatus":
-            return 8;
-        case "ciqstatus":
+            return 6;
+        case "ciqcratedate":
             return 9;
         case "documents":
             return 11;
-        case "ciqcratedate":
-            return 14;
         case "ciqflgsendorder":
-            return 20;
+            return 14;
+        case "ciqorderasset":
+            return 15;
         case "ciqbono":
-            return 29;
+            return 17;
         case "ciqbonoincondicional":
-            return 30;
+            return 18;
         case "ciqvalidacionesok":
-            return 40;
+            return 25;
+        case "ciqasset":
+            return 26;
+        case "ciqseltype":
+            return 27;
         case "ciqcalidad":
-            return 42;
+            return 28;
 		default:
             throw "getKeyCol["+elementId+"] desconocida";
-			return 0;
 	}
 }
 
