@@ -20,7 +20,7 @@ function clean(element) {
         document.getElementById("fileCIOText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
         document.getElementById("fileHistoricoText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
         document.getElementById("fileNEQText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
-        document.getElementById("fileCALext").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileCALText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
         document.getElementById("fileDocumentsText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
         document.getElementById("fileExceptionsText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
     }
@@ -131,6 +131,14 @@ function validate(){
     if(!files.has("fileCIQ") || !files.has("fileCIO") || !files.has("fileHistorico") || !files.has("fileNEQ") ||
     !files.has("fileCAL") || !files.has("fileDocuments") || !files.has("fileExceptions") ) {
         document.getElementById("calculateBotton").disabled = false;
+        document.getElementById("cleanCIQ").disabled = false;
+        document.getElementById("cleanCIO").disabled = false;
+        document.getElementById("cleanHistorico").disabled = false;
+        document.getElementById("cleanNEQ").disabled = false;
+        document.getElementById("cleanCAL").disabled = false;
+        document.getElementById("cleanDocuments").disabled = false;
+        document.getElementById("cleanExceptions").disabled = false;
+        document.getElementById("cleanAll").disabled = false;
 		dropState = true;
         let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
         resultado.appendChild(res);
@@ -144,6 +152,15 @@ function validate(){
 function calculate() {
 	// Desactivamos botones
     document.getElementById("calculateBotton").disabled = true;
+    document.getElementById("cleanCIQ").disabled = true;
+    document.getElementById("cleanCIO").disabled = true;
+    document.getElementById("cleanHistorico").disabled = true;
+    document.getElementById("cleanNEQ").disabled = true;
+    document.getElementById("cleanCAL").disabled = true;
+    document.getElementById("cleanDocuments").disabled = true;
+    document.getElementById("cleanExceptions").disabled = true;
+    document.getElementById("cleanAll").disabled = true;
+    
 	dropState = false;
     document.getElementById("getCsvKO").disabled = true;
     document.getElementById("getCsvOK").disabled = true;
@@ -260,6 +277,7 @@ function calculate() {
                     // 15 Bonos Sociales no generan CIO sobre no formalizados
                     // 16 Asset mal asociado en movimiento distinto a alta
                     // 17 Caso de calidad abierto sin Quote/CIO asignado
+                    // 18 RecordTypeId sin informar
                     //-- warnings de relanzamiento:
                     // 50 muchas CIQS "Muchos ciqs en la misma necesidad"
                     // 51 FI_CI_FLG_Validaciones_OK__c = false "Validaciones de CC y CD saltadas"
@@ -281,6 +299,7 @@ function calculate() {
                         let ciqorderasset = ciqh[getKeyCol("ciqorderasset")];
                         let ciqasset = ciqh[getKeyCol("ciqasset")];
                         let ciqseltype = ciqh[getKeyCol("ciqseltype")];
+                        let ciqRecordTypeId = ciqh[getKeyCol("ciqRecordTypeId")];
 
                         if(ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
                         else if(ciqStatus == "Pending" && errorCode > 3) errorCode = 3;
@@ -300,6 +319,7 @@ function calculate() {
                         else if(ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 15) errorCode = 15;
                         else if(ciqStatus == "Formalized" && ciqseltype != "A" && (ciqasset == "" || ciqasset != ciqorderasset) && errorCode > 16) errorCode = 16;
                         else if(calidad.length > 0 && errorCode > 17) errorCode = 17;
+                        else if(ciqStatus == "Formalized" && ciqRecordTypeId == "" && errorCode > 18) errorCode = 18;
                         else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
                         else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
                     }
@@ -403,6 +423,8 @@ function getMensaje(errorCode) {
             return "["+errorCode+"] Asset mal asociado en movimiento distinto a alta";
         case 17:
             return "["+errorCode+"] Caso de calidad abierto sin Quote/CIO asignado";
+        case 18:
+            return "["+errorCode+"] RecordTypeId sin informar sobre CI N1";
         case 50:
             return "["+errorCode+"] Muchos ciqs en la misma necesidad";
         case 51:
@@ -567,7 +589,7 @@ function fileCSVToArray(file,elementId) {
 			var arrprocesado = CSVToArray(fileText,arrAnt);
 			files.set(elementId,arrprocesado);
 			console.log("Done: "+elementId);
-			document.getElementById(elementId + "Text").innerHTML = file.name+" <img src='img/check.png' width='20' height='20' >";
+			document.getElementById(elementId + "Text").innerHTML = "Last file: "+file.name+"["+arrprocesado.length+"] <img src='img/check.png' width='20' height='20' >";
 			
 		}, 10);
     }
@@ -615,8 +637,10 @@ function getKeyCol(elementId) {
             return 26;
         case "ciqseltype":
             return 27;
-        case "ciqcalidad":
+        case "ciqrecordtypeid":
             return 28;
+        case "ciqcalidad":
+            return 29;
 		default:
             throw "getKeyCol["+elementId+"] desconocida";
 	}
