@@ -7,6 +7,29 @@ var codeResult = [];
 var segundoInformeId = [];
 var segundoInformeAsset = [];
 
+//if(!files.has("fileCIQ") || !files.has("fileCIO") || !files.has("fileHistorico") || 
+//!files.has("fileNEQ") || !files.has("fileDocuments") || !files.has("fileExceptions") ) {
+
+function clean(element) {
+    let elementId = element.id;
+    if(elementId.startsWith("clean")) elementId = elementId.substring(5);
+
+    if(elementId == "All") {
+        files.clear();
+        document.getElementById("fileCIQText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileCIOText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileHistoricoText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileNEQText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileCALext").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileDocumentsText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        document.getElementById("fileExceptionsText").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+    }
+    else {
+        files.delete("file"+elementId);
+        document.getElementById("file"+elementId+"Text").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+    }
+}
+
 function fileHandler(file,elementId) {
 	if(file.name.substr(file.name.length - 4) != ".csv" ) {
         alert("La extensión debe ser .csv");
@@ -26,18 +49,21 @@ function dropHandler(ev,element) {
 	
 	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
 	
-	var file = null;
     if (ev.dataTransfer.items) {
         // Use DataTransferItemList interface to access the file(s)
-        if (ev.dataTransfer.items[0].kind === 'file') {
-            file = ev.dataTransfer.items[0].getAsFile();
+        for(var i = 0;i<ev.dataTransfer.items.length;i++){
+            if (ev.dataTransfer.items[i].kind === 'file') {
+                var file = ev.dataTransfer.items[i].getAsFile();
+                fileHandler(file,element.id);
+            }
         }
     // Use DataTransfer interface to access the file(s)
     } else if (ev.dataTransfer.files.length > 0) {
-        file = ev.dataTransfer.files[0];
+        for(var i = 0;i<ev.dataTransfer.files.length;i++){
+            var file = ev.dataTransfer.files[i];
+            fileHandler(file,element.id);
+        }
     }
-	
-	fileHandler(file,element.id);
 	
     // Pass event to removeDragData for cleanup
     removeDragData(ev);
@@ -82,6 +108,7 @@ function dafaultElementId(fileName) {
 	if (fileName == "ciq.csv") elementId = "fileCIQ";
     else if (fileName == "cio.csv") elementId = "fileCIO";
     else if (fileName == "neq.csv") elementId = "fileNEQ";
+    else if (fileName == "cal.csv") elementId = "fileCAL";
     else if (fileName == "documents.csv") elementId = "fileDocuments";
     else if (fileName == "historico.csv") elementId = "fileHistorico";
     else if (fileName == "exceptions.csv") elementId = "fileExceptions";
@@ -101,8 +128,8 @@ function sorter(fileElements,keyCol) {
 }
 
 function validate(){
-    if(!files.has("fileCIQ") || !files.has("fileCIO") || !files.has("fileHistorico") || 
-    !files.has("fileNEQ") || !files.has("fileDocuments") || !files.has("fileExceptions") ) {
+    if(!files.has("fileCIQ") || !files.has("fileCIO") || !files.has("fileHistorico") || !files.has("fileNEQ") ||
+    !files.has("fileCAL") || !files.has("fileDocuments") || !files.has("fileExceptions") ) {
         document.getElementById("calculateBotton").disabled = false;
 		dropState = true;
         let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
@@ -145,6 +172,7 @@ function calculate() {
     var arrCIO = files.get("fileCIO");
     var arrCIOCase = arrCIO.filter(() => true);
     var arrNEQ = files.get("fileNEQ");
+    var arrCAL = files.get("fileCAL");
     var arrDocuments = files.get("fileDocuments");
     var arrHistorico = files.get("fileHistorico");
     var arrExceptions = files.get("fileExceptions");
@@ -160,6 +188,8 @@ function calculate() {
     sorter(arrCIOCase,getKeyCol("ciocase"));
     console.log("Sort neq");
     sorter(arrNEQ,getKeyCol("neq"));
+    console.log("Sort cal");
+    sorter(arrCAL,getKeyCol("cal"));
     console.log("Sort documents");
     sorter(arrDocuments,getKeyCol("documents"));
     console.log("Sort historico");
@@ -210,6 +240,7 @@ function calculate() {
                     let neqs = buscaArr(idCase,arrNEQ,getKeyCol("neq"));
                     let documents = buscaArr(idCase,arrDocuments,getKeyCol("documents"));
                     let historicos = buscaArr(idCase,arrHistorico,getKeyCol("ciqcase"));
+                    let calidad = buscaArr(idCase,arrCAL,getKeyCol("cal"));
 
                     // 0 Formalizada sin case wtf "CIQ sin Caso asignado"
                     // 1 "Casos en Everest pendiente de cancelación"
@@ -226,7 +257,9 @@ function calculate() {
                     // 12 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
                     // 13 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
                     // 14 FI_NEQ_FLG_SendOrder__c "Proceso de creación de CIO finalizado"
-                    // 15 "Bonos Sociales no generan CIO sobre no formalizados"
+                    // 15 Bonos Sociales no generan CIO sobre no formalizados
+                    // 16 Asset mal asociado en movimiento distinto a alta
+                    // 17 Caso de calidad abierto sin Quote/CIO asignado
                     //-- warnings de relanzamiento:
                     // 50 muchas CIQS "Muchos ciqs en la misma necesidad"
                     // 51 FI_CI_FLG_Validaciones_OK__c = false "Validaciones de CC y CD saltadas"
@@ -264,8 +297,9 @@ function calculate() {
                         else if(documents.length > 0 && errorCode > 10) errorCode = 10;
                         else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 12) errorCode = 12;
                         else if(ciqStatus == "Formalized" && ciqFlgSendOrder != "false" && errorCode > 14) errorCode = 14;
-                        else if(ciqStatus == "Formalized" && ciqseltype != "A" && (ciqasset == "" || ciqasset != ciqorderasset)) errorCode = 15;
-						else if(ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 15) errorCode = 15;
+                        else if(ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 15) errorCode = 15;
+                        else if(ciqStatus == "Formalized" && ciqseltype != "A" && (ciqasset == "" || ciqasset != ciqorderasset) && errorCode > 16) errorCode = 16;
+                        else if(calidad.length > 0 && errorCode > 17) errorCode = 17;
                         else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
                         else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
                     }
@@ -367,6 +401,8 @@ function getMensaje(errorCode) {
             return "["+errorCode+"] Bonos Sociales no generan CIO sobre no formalizados";
         case 16:
             return "["+errorCode+"] Asset mal asociado en movimiento distinto a alta";
+        case 17:
+            return "["+errorCode+"] Caso de calidad abierto sin Quote/CIO asignado";
         case 50:
             return "["+errorCode+"] Muchos ciqs en la misma necesidad";
         case 51:
@@ -387,7 +423,7 @@ function getHistoricos(historicos,idCiq) {
         var hist = historicos[i];
 
         var caseHist = hist.length-1; // buscamos el último informado
-        while(hist[caseHist]=="")caseHist--;
+        while(hist[caseHist]=="" && caseHist > 0)caseHist--;
 
         if(i==0) msgCase = hist[caseHist];
         if(hist[getKeyCol("ciq")]==idCiq) {
@@ -526,8 +562,9 @@ function fileCSVToArray(file,elementId) {
 		setTimeout(function () {
 			
 			var fileText = fr.result;
-			console.log("Procesing: "+elementId);
-			var arrprocesado = CSVToArray(fileText);
+            console.log("Procesing: "+elementId);
+            var arrAnt = files.get(elementId);
+			var arrprocesado = CSVToArray(fileText,arrAnt);
 			files.set(elementId,arrprocesado);
 			console.log("Done: "+elementId);
 			document.getElementById(elementId + "Text").innerHTML = file.name+" <img src='img/check.png' width='20' height='20' >";
@@ -546,6 +583,7 @@ function getKeyCol(elementId) {
         	return 1;
 		case "cio":
         case "neq":
+        case "cal":
         case "documentacionciqid":
         case "ciqstatus":
             return 2;
@@ -585,8 +623,9 @@ function getKeyCol(elementId) {
 }
 
 // donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
-function CSVToArray(strData, strDelimiter) {
+function CSVToArray(strData, arrAnt, strDelimiter) {
     strDelimiter = (strDelimiter || ",");
+    arrAnt = (arrAnt || []);
     var arrData1row = strData.split("\r\n");
     var arrData = [];
     for(row of arrData1row){
@@ -598,6 +637,10 @@ function CSVToArray(strData, strDelimiter) {
             }
         }
         arrData.push(cols);
+    }
+    if(arrAnt.length>0) {
+        arrData.shift(); // se quitan los encabezados
+        arrData = arrAnt.concat(arrData);
     }
     return arrData;
 }
