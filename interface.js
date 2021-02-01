@@ -31,216 +31,133 @@ const ficherosV1 = ["CIQ","CIO","HIS","NEQ","CAL","DOC","EXC"];
 // VAlidaciones:
 let validaciones = [
     {
-        priority: VAL_CIQ_SIN_CASE,
-        validate: function(ciqStatus, ciqh) { return false; },
-        description: "CIQ sin Caso asignado",
-        negocio: false,
-        ficheroOK: true
+        priority: VAL_CIQ_SIN_CASE, description: "CIQ sin Caso asignado",
+        validate: function(ciqStatus, ciqh) { return false; }
     }, {
-        priority:VAL_EXC_EVEREST,
-        validate: function(ciqStatus, ciqh) { return false; },
-        description: "Casos en Everest pendiente de cancelacion",
-        negocio: true,
-        ficheroOK: true
+        priority:VAL_EXC_EVEREST, description: "Casos en Everest pendiente de cancelacion",
+        validate: function(ciqStatus, ciqh) { return false; }
     }, {
-        priority: VAL_BONO_SOCIAL,
+        priority: VAL_BONO_SOCIAL, description: "Casos en Everest pendiente de cancelacion",
         validate: function(ciqStatus,ciqh) { 
             let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
             let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
             return ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false"; 
-        },
-        description: "Casos en Everest pendiente de cancelacion",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-        priority: VAL_PTE_BATCH,
+        priority: VAL_PTE_BATCH, description: "Bonos Sociales no generan CIO",
         validate: function(ciqStatus,ciqh) { 
             return ciqStatus == "Pending"; 
-        },
-        description: "Bonos Sociales no generan CIO",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-		priority: 4,
+		priority: 4, description: "Caso de Calidad o Documentacion pendiente de finalizar",
         validate: function(ciqStatus,ciqh) { 
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "In Review" && ciqQuoteStatus == "In-Transit"; 
-        },
-        description: "Caso de Calidad o Documentacion pendiente de finalizar",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-		priority: 5,
+		priority: 5, description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
         validate: function(ciqStatus,ciqh) {
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "Pending_after_BO" && ciqQuoteStatus == "In-Transit"; 
-        },
-        description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-		priority: 6,
+		priority: 6, description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
         validate: function(ciqStatus,ciqh) {
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "Signature_pending" && ciqQuoteStatus == "In-Transit"; 
-        },
-        description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-		priority: 7,
+		priority: 7, description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
         validate: function(ciqStatus,ciqh) {
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            let ciqFlgFormalized = ciqh[getKeyCol("ciqFlgFormalized")].toLowerCase();
             return ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit" && ciqFlgFormalized == "false"; 
-        },
-        description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-		priority: 8,
+		priority: 8, description: "Pendiente formalizar con flag inconsitente",
         validate: function(ciqStatus,ciqh) {
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit"; 
-        },
-        description: "Pendiente formalizar con flag inconsitente",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: 9,
+		priority: 9, description: "Tienen casos de calidad pendientes sobre formalizados",
         validate: function(ciqStatus,ciqh) { 
             let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
             return ciqStatus == "Formalized" && ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
             ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved"  && 
             ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica"; 
-        },
-        description: "Tienen casos de calidad pendientes sobre formalizados",
-        negocio: true,
-        ficheroOK: true
+        }
     }, {
-		priority: 10,
+		priority: 10, description: "Tienen casos de calidad pendientes",
         validate: function(ciqStatus,ciqh) { 
             let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
             return ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
             ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && 
             ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica"; 
-        },
-        description: "Tienen casos de calidad pendientes",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: VAL_DOC_INC,
-        validate: function(ciqStatus,ciqh) { 
-            return false; 
-        },
-        description: "Tienen casos de documentación pendientes sobre estados inconsitentes",
-        negocio: false,
-        ficheroOK: true
+		priority: VAL_DOC_INC, description: "Tienen casos de documentación pendientes sobre estados inconsitentes",
+        validate: function(ciqStatus,ciqh) { return false; }
     }, {
-		priority: VAL_CIO_HERMANOS,
-        validate: function(ciqStatus,ciqh) { 
-            return false; 
-        },
-        description: "Ya hay cios en esta necesidad",
-        negocio: false,
-        ficheroOK: true
+		priority: VAL_CIO_HERMANOS, description: "Ya hay cios en esta necesidad",
+        validate: function(ciqStatus,ciqh) { return false; }
     }, {
-		priority: 13,
+		priority: 13, description: "Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado",
         validate: function(ciqStatus,ciqh) { 
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending"; 
-        },
-        description: "Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: VAL_QUOTE_INC,
-        validate: function(ciqStatus,ciqh) { 
-            return false; 
-        },
-        description: "Necesidad con Quote en estado inconsistente",
-        negocio: false,
-        ficheroOK: true
+		priority: VAL_QUOTE_INC, description: "Necesidad con Quote en estado inconsistente",
+        validate: function(ciqStatus,ciqh) { return false; }
     }, {
-		priority: 15,
+		priority: 15, description: "Proceso de creación de CIO finalizado",
         validate: function(ciqStatus,ciqh) { 
             let ciqFlgSendOrder = ciqh[getKeyCol("ciqFlgSendOrder")].toLowerCase();
             return ciqStatus == "Formalized" && ciqFlgSendOrder != "false"; 
-        },
-        description: "Proceso de creación de CIO finalizado",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: 16,
+		priority: 16, description: "Bonos Sociales no generan CIO sobre no formalizados",
         validate: function(ciqStatus,ciqh) { 
             let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
             let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
             return ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "true"; 
-        },
-        description: "Bonos Sociales no generan CIO sobre no formalizados",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: 17,
+		priority: 17, description: "Asset mal asociado en movimiento distinto a alta",
         validate: function(ciqStatus,ciqh) { 
             let ciqseltype = ciqh[getKeyCol("ciqseltype")];
             let ciqasset = ciqh[getKeyCol("ciqasset")];
             let ciqorderasset = ciqh[getKeyCol("ciqorderasset")];
             return ciqStatus == "Formalized" && ciqseltype != "A" && (ciqasset == "" || ciqasset != ciqorderasset); 
-        },
-        description: "Asset mal asociado en movimiento distinto a alta",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: VAL_CAL_SIN_QUO,
-        validate: function(ciqStatus,ciqh) { 
-            return false; 
-        },
-        description: "Caso de calidad abierto sin Quote/CIO asignado",
-        negocio: true,
-        ficheroOK: true
+		priority: VAL_CAL_SIN_QUO, description: "Caso de calidad abierto sin Quote/CIO asignado",
+        validate: function(ciqStatus,ciqh) { return false; }
     }, {
-		priority: 19,
+		priority: 19, description: "RecordTypeId sin informar sobre CI N1",
         validate: function(ciqStatus,ciqh) { 
             let ciqRecordTypeId = ciqh[getKeyCol("ciqRecordTypeId")];
             return ciqStatus == "Formalized" && ciqRecordTypeId == ""; 
-        },
-        description: "RecordTypeId sin informar sobre CI N1",
-        negocio: false,
-        ficheroOK: true
+        }
     }, {
-		priority: VAL_W_TMQ,
-        validate: function(ciqStatus,ciqh) { 
-            return false; 
-        },
-        description: "Muchos ciqs en la misma necesidad",
-        negocio: false,
-        ficheroOK: false
+		priority: VAL_W_TMQ, description: "Muchos ciqs en la misma necesidad",
+        validate: function(ciqStatus,ciqh) { return false; },
     }, {
-		priority: 51,
+		priority: 51, description: "Validaciones de CC y CD saltadas",
         validate: function(ciqStatus,ciqh) { 
             let flagValidacionesOK = ciqh[getKeyCol("ciqValidacionesOK")].toLowerCase();
             return ciqStatus == "Formalized" && flagValidacionesOK != "true";
-        },
-        description: "Validaciones de CC y CD saltadas",
-        negocio: false,
-        ficheroOK: false
+        }
     }, {
-		priority: 52,
+		priority: 52, description: "Quote CRM_Transfer_Pending sobre CIQ Cancelled",
         validate: function(ciqStatus,ciqh) { 
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending"; 
-        },
-        description: "Quote CRM_Transfer_Pending sobre CIQ Cancelled",
-        negocio: false,
-        ficheroOK: false
+        }
     }, {
-		priority: VAL_W_OK,
-        validate: function(ciqStatus,ciqh) { 
-            return true; 
-        },
-        description: "OK relanzar",
-        negocio: false,
-        ficheroOK: false
+		priority: VAL_W_OK, description: "OK relanzar",
+        validate: function(ciqStatus,ciqh) { return true; }
     }
 ];
 
@@ -335,8 +252,8 @@ function dropHandlerAll(ev) {
 }
 
 function dafaultElementId(fileName) {
-    if(fileName.substring(str.length-4) == ".csv") {
-        let filen = fileName.substring(0,str.length-4);
+    if(fileName.substring(fileName.length-4) == ".csv") {
+        let filen = fileName.substring(0,fileName.length-4);
         filen = filen.toUpperCase();
         if(ficherosV1.includes(filen)) return `file${filen}`;
     }
@@ -510,7 +427,7 @@ function calculate() {
                     if(cios.length > 0 && errorCode > VAL_CIO_HERMANOS)  errorCode = VAL_CIO_HERMANOS;
                     if(calidad.length > 0 && errorCode > VAL_CAL_SIN_QUO) errorCode = VAL_CAL_SIN_QUO;
                     
-                    histo = geHis(hiss,idCiq);
+                    histo = getHis(hiss,idCiq);
                 }
 
                 // obtener la fecha más atigua, sin contar los codigos de negocio que no se espera progresen 0, 1  y 2
