@@ -5,8 +5,11 @@
 // - por bono F3A  -- F3A_CI_LKP_Social_Bonus__c, FI_CI_DAT_SocialBonusOK__c si lo tiene es que tiene gestión de bono social
 // - por cups
 // nuevo caso FI_CI_SEL_Access_channel__c == FI_CI_LKP_Quote__r.Access_channel__c tienen que ser iguales
+// solo un order por need
 
-// Variables globales
+/** 
+ * Variables globales
+ * */ 
 var files = new Map(); // Datos de un fichero
 var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos KO
 var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
@@ -15,6 +18,9 @@ var codeResult = [];
 var segundoInformeId = [];
 var segundoInformeAsset = [];
 
+/**
+ * Constantes
+ */
 const VAL_CIQ_SIN_CASE = 0;   // Formalizada sin case wtf "CIQ sin Caso asignado"
 const VAL_EXC_EVEREST  = 1;   // "Casos en Everest pendiente de cancelación"
 const VAL_BONO_SOCIAL  = 2;   // bonos "Bonos Sociales no generan CIO"
@@ -28,7 +34,7 @@ const VAL_W_OK         = 100;
 
 const ficherosV1 = ["CIQ","CIO","HIS","NEQ","CAL","DOC","EXC"];
 
-// VAlidaciones:
+// Validaciones:
 let validaciones = [
     {
         priority: VAL_CIQ_SIN_CASE, description: "CIQ sin Caso asignado",
@@ -161,141 +167,17 @@ let validaciones = [
     }
 ];
 
-function clean(element) {
-    let elementId = element.id;
-    if(elementId.startsWith("clean")) elementId = elementId.substring(5);
 
-    if(elementId == "All") {
-        files.clear();
-        ficherosV1.forEach(function(val){
-            let element = `file${val}Text`;
-            document.getElementById(element).innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
-        });
-    }
-    else {
-        files.delete("file"+elementId);
-        document.getElementById("file"+elementId+"Text").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
-    }
-}
-
-function fileHandler(file,elementId) {
-	if(file.name.substr(file.name.length - 4) != ".csv" ) {
-        alert("La extensión debe ser .csv");
-        return false;
-    }
-    document.getElementById(elementId+"Text").innerHTML= "LOADING FILE...  <img src='img/rainbow.png' height='20' >";
-    fileCSVToArray(file,elementId+"");
-    console.log('saving file.name['+file.name+'] on['+elementId+']');
-}
-
-//Drop invididual
-function dropHandler(ev,element) {
-	console.log('File(s) dropped');
-
-    // Prevent default behavior (Prevent file from being opened)
-    ev.preventDefault();
-	
-	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
-	
-    if (ev.dataTransfer.items) {
-        // Use DataTransferItemList interface to access the file(s)
-        for(var i = 0;i<ev.dataTransfer.items.length;i++){
-            if (ev.dataTransfer.items[i].kind === 'file') {
-                var file = ev.dataTransfer.items[i].getAsFile();
-                fileHandler(file,element.id);
-            }
-        }
-    // Use DataTransfer interface to access the file(s)
-    } else if (ev.dataTransfer.files.length > 0) {
-        for(var i = 0;i<ev.dataTransfer.files.length;i++){
-            var file = ev.dataTransfer.files[i];
-            fileHandler(file,element.id);
-        }
-    }
-	
-    // Pass event to removeDragData for cleanup
-    removeDragData(ev);
-}
-
-// Drop de varios ficheros
-function dropHandlerAll(ev) {
-	console.log('File(s) dropped');
-
-    // Prevent default behavior (Prevent file from being opened)
-    ev.preventDefault();
-	
-    if(!dropState) { alert("Can't drop files in this state, you have to refresh the page");	removeDragData(ev); return false; }
-
-    if (ev.dataTransfer.items) {
-        // Use DataTransferItemList interface to access the file(s)
-        for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-            if (ev.dataTransfer.items[i].kind === 'file') {
-                var file = ev.dataTransfer.items[i].getAsFile();
-                let elementId = dafaultElementId(file.name);
-                if (elementId == "") continue;
-				fileHandler(file,elementId);
-            }
-        }
-
-    // Use DataTransfer interface to access the file(s)
-    } else {
-        for (var i = 0; i < ev.dataTransfer.files.length; i++) {
-            var file = ev.dataTransfer.files[i];
-            let elementId = dafaultElementId(file.name);
-            if (elementId == "") continue;
-			fileHandler(file,elementId);
-        }
-    } 
-
-    // Pass event to removeDragData for cleanup
-    removeDragData(ev);
-}
-
-function dafaultElementId(fileName) {
-    if(fileName.substring(fileName.length-4) == ".csv") {
-        let filen = fileName.substring(0,fileName.length-4);
-        filen = filen.toUpperCase();
-        if(ficherosV1.includes(filen)) return `file${filen}`;
-    }
-	return "";
-}
-
-function sorter(fileElements,keyCol) {
-    let idCol = 1;
-    fileElements.sort(function(a,b) {
-        // encabezados siempre arriba
-        if(a[idCol] == "Id") return -1;
-        if(b[idCol] == "Id") return 1;
-        // sort de javascript que el de salesforce va como el culo
-        return a[keyCol].toLowerCase().localeCompare(b[keyCol].toLowerCase());
-        });	
-}
-
-function validate(){
-    let validated = true;
-    ficherosV1.forEach(function(fchName) {
-        if(!files.has(`file${fchName}`)) {
-            validated = false;
-        }
-    });
-
-    if(!validated) {
-        ficherosV1.forEach(function(fchName) {
-            document.getElementById(`clean${fchName}`).disabled = false;
-        });
-        document.getElementById("cleanAll").disabled = false;
-		dropState = true;
-        let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
-        resultado.appendChild(res);
-        return false;
-    }
-    console.log("Valitations OK");
-    return true;
-}
-
-// Valida y calcula el resultado
+/**
+ * Función principal se compone de: 
+ * - Validación de entrada y gestión de pagina
+ * - Getión de datos (Sort): Las busquedas de datos son con el algoritmo bianrio, lo que obliga a que los datos esten ordenados (Sort)
+ * - Revisión de informes
+ * - Mostrar resultados en página
+ */
 function calculate() {
-	// Desactivamos botones
+    ////////////// Validación de entrada y gestión de pagina
+    // Desactivamos botones:
     document.getElementById("calculateBotton").disabled = true;
     ficherosV1.forEach(function(fchName) {
         document.getElementById(`clean${fchName}`).disabled = true;
@@ -324,7 +206,9 @@ function calculate() {
     // validaciones
     if(!validate()) return false;
 	
-	// obtenermos la info de los ficheros en variables locales
+    
+    
+    ////////////// Getión de datos (Sort)
     var arrCIQ = files.get("fileCIQ");
     var arrCIQCase = arrCIQ.filter(() => true);
     var arrCIO = files.get("fileCIO");
@@ -356,7 +240,10 @@ function calculate() {
     sorter(arrEXC,getKeyCol("exc"));
     console.log("Sorts FIN");
 
-    // Va lo bueno
+    
+    
+    
+    ////////////// Revisión de informes
     console.log("Look for cases: INI");
     for(let ciq of arrCIQ) {
 
@@ -460,7 +347,10 @@ function calculate() {
     }
     console.log("Look for cases: END");
     
-    // Desplegamos el resultado
+    
+    
+    
+    ////////////// Mostrar resultados en página
     console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
     console.log(codeResult);
     resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + sinCIO)));
@@ -476,20 +366,52 @@ function calculate() {
     document.getElementById("getCsvOK").disabled = false;
 }
 
-function getMensaje(errorCode) {
-    if(!codeResult[errorCode]) codeResult[errorCode]=0;
-    codeResult[errorCode]++;
 
-    validaciones.forEach(function(validacion){
-        if(errorCode == validacion.priority) {
-            let desc = validacion.description;
-            return `[${errorCode}] ${desc}`;
+
+
+/**
+ * Validación de entrada y gestión de pagina
+ * Getión de datos (Sort)
+ */
+function validate() {
+    let validated = true;
+    ficherosV1.forEach(function(fchName) {
+        if(!files.has(`file${fchName}`)) {
+            validated = false;
         }
     });
 
-    return `[${errorCode}] Error desconocido`;
+    if(!validated) {
+        ficherosV1.forEach(function(fchName) {
+            document.getElementById(`clean${fchName}`).disabled = false;
+        });
+        document.getElementById("cleanAll").disabled = false;
+		dropState = true;
+        let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
+        resultado.appendChild(res);
+        return false;
+    }
+    console.log("Valitations OK");
+    return true;
 }
 
+function sorter(fileElements,keyCol) {
+    let idCol = 1;
+    fileElements.sort(function(a,b) {
+        // encabezados siempre arriba
+        if(a[idCol] == "Id") return -1;
+        if(b[idCol] == "Id") return 1;
+        // sort de javascript que el de salesforce va como el culo
+        return a[keyCol].toLowerCase().localeCompare(b[keyCol].toLowerCase());
+        });	
+}
+
+
+
+
+/**
+ * Revisión de informes
+ */
 function getHis(his,idCiq) {
     let msgCiq = "";
     let msgCase = "";
@@ -508,7 +430,132 @@ function getHis(his,idCiq) {
     return [msgCiq,msgCase];
 }
 
-// Arama la tabla con el resultado
+// función para buscar el id en busqueda binaria, al encontrarlo busca en un arrglo todos los casos
+function buscaArr(id,arr,column) {
+    if(arr.length == 1) return [];
+    
+    let mid = binarySearch(id,arr,column, 0, arr.length-1);
+    if(mid == -1) return [];
+
+    // buscamos el caso inferior
+    var inf=mid;
+    inf--;
+    while(inf>=0 && arr[inf][column] == id) inf--;
+    inf++;
+
+    // buscamos ahora el inferior
+    var sup=mid;
+    sup++;
+    while(sup<arr.length && arr[sup][column] == id) sup++;
+    sup--;
+
+    let respuesta = [];
+    for(var i=inf;i<=sup;i++){
+        respuesta.push(arr[i]);
+    }
+
+    return respuesta;
+}
+
+// función para buscar el id con busqueda binaria
+function buscaId(id,arrCSV,column) {
+    return binarySearch(id,arrCSV,column, 0, arrCSV.length-1) > -1;
+}
+
+// busqueda binaria recursiva FTW
+function binarySearch(id,arrCSV,column, start, end){
+    // condición base, no encontrado
+    if(start > end) return -1;
+
+    // busqueda de mid y comparación
+    let mid = Math.floor((start + end) /2);
+    let row = arrCSV[mid];
+    var compare = id.toLowerCase().localeCompare(row[column].toLowerCase());
+    if(mid==0) compare=1; // mid=0 es el encabezado por eso siempre hay que regresar 1
+    
+    // encontrado!
+    if(compare == 0) return mid;
+
+    // menor que mid
+    if(compare < 0) return binarySearch(id,arrCSV,column, start, mid-1);
+
+    // mayor que mid
+    return binarySearch(id,arrCSV,column, mid+1, end);
+}
+
+// A cada resultado del fichero hay una columna clave de comparación aqui se define ese campo
+function getKeyCol(elementId) {
+	var eId = elementId.toLowerCase();
+	if(eId.startsWith("file")) eId = eId.substring(4);
+	switch(eId) {
+		case "ciq":
+        	return 1;
+		case "cio":
+        case "neq":
+        case "cal":
+        case "documentacionciqid":
+        case "ciqstatus":
+            return 2;
+        case "ciqquote":
+		case "exc":
+            return 3;
+        case "ciocase":
+            return 4;
+        case "ciqcase":
+            return 5;
+        case "neqstatus":
+        case "ciqquotestatus":
+            return 6;
+        case "ciqcratedate":
+            return 9;
+        case "doc":
+            return 11;
+        case "ciqflgformalized":
+            return 13;
+        case "ciqflgsendorder":
+            return 14;
+        case "ciqorderasset":
+            return 15;
+        case "ciqbono":
+            return 17;
+        case "ciqbonoincondicional":
+            return 18;
+        case "ciqvalidacionesok":
+            return 25;
+        case "ciqasset":
+            return 26;
+        case "ciqseltype":
+            return 27;
+        case "ciqrecordtypeid":
+            return 28;
+        case "ciqcalidad":
+            return 29;
+		default:
+            throw `getKeyCol[${elementId}] desconocida`;
+	}
+}
+
+
+/**
+ * Mostrar resultados en página
+ * Grupo de funciones y métodos para gestionar y mostrar el resultado final
+ */
+// funciones de validación y gestión sobre la principal
+function getMensaje(errorCode) {
+    if(!codeResult[errorCode]) codeResult[errorCode]=0;
+    codeResult[errorCode]++;
+
+    validaciones.forEach(function(validacion){
+        if(errorCode == validacion.priority) {
+            let desc = validacion.description;
+            return `[${errorCode}] ${desc}`;
+        }
+    });
+
+    return `[${errorCode}] Error desconocido`;
+}
+
+// Gestión de resultado
 function tablaResultante(cioResult){
     let table = document.createElement("table");
 
@@ -572,157 +619,6 @@ function parrafo(mensaje) {
     return para;
 }
 
-// función para buscar el id en busqueda binaria, al encontrarlo busca en un arrglo todos los casos
-function buscaArr(id,arr,column) {
-    if(arr.length == 1) return [];
-    
-    let mid = binarySearch(id,arr,column, 0, arr.length-1);
-    if(mid == -1) return [];
-
-    // buscamos el caso inferior
-    var inf=mid;
-    inf--;
-    while(inf>=0 && arr[inf][column] == id) inf--;
-    inf++;
-
-    // buscamos ahora el inferior
-    var sup=mid;
-    sup++;
-    while(sup<arr.length && arr[sup][column] == id) sup++;
-    sup--;
-
-    let respuesta = [];
-    for(var i=inf;i<=sup;i++){
-        respuesta.push(arr[i]);
-    }
-
-    return respuesta;
-}
-
-// función para buscar el id con busqueda binaria
-function buscaId(id,arrCSV,column) {
-    return binarySearch(id,arrCSV,column, 0, arrCSV.length-1) > -1;
-}
-
-// busqueda binaria recursiva FTW
-function binarySearch(id,arrCSV,column, start, end){
-    // condición base, no encontrado
-    if(start > end) return -1;
-
-    // busqueda de mid y comparación
-    let mid = Math.floor((start + end) /2);
-    let row = arrCSV[mid];
-    var compare = id.toLowerCase().localeCompare(row[column].toLowerCase());
-    if(mid==0) compare=1; // mid=0 es el encabezado por eso siempre hay que regresar 1
-    
-    // encontrado!
-    if(compare == 0) return mid;
-
-    // menor que mid
-    if(compare < 0) return binarySearch(id,arrCSV,column, start, mid-1);
-
-    // mayor que mid
-    return binarySearch(id,arrCSV,column, mid+1, end);
-}
-
-// Aquí convertimos el fichero en texto e inicializamos las variables para trabajar los datos
-function fileCSVToArray(file,elementId) {
-    console.log("Reading: "+elementId);
-    var fr = new FileReader();
-	fr.onload = function() {
-		document.getElementById(elementId + "Text").innerHTML = "Pocessing... <img src='img/pocessing.png' width='20' height='20' >";
-       	
-		// el timeout es solo para que pinte los estados
-		setTimeout(function () {
-			
-			var fileText = fr.result;
-            console.log("Procesing: "+elementId);
-            var arrAnt = files.get(elementId);
-			var arrprocesado = CSVToArray(fileText,arrAnt);
-			files.set(elementId,arrprocesado);
-			console.log("Done: "+elementId);
-			document.getElementById(elementId + "Text").innerHTML = "Last file: "+file.name+"["+arrprocesado.length+"] <img src='img/check.png' width='20' height='20' >";
-			
-		}, 10);
-    }
-    fr.readAsText(file); //,"ISO-8859-1");
-}
-
-// A cada resultado del fichero hay una columna clave de comparación aqui se define ese campo
-function getKeyCol(elementId) {
-	var eId = elementId.toLowerCase();
-	if(eId.startsWith("file")) eId = eId.substring(4);
-	switch(eId) {
-		case "ciq":
-        	return 1;
-		case "cio":
-        case "neq":
-        case "cal":
-        case "documentacionciqid":
-        case "ciqstatus":
-            return 2;
-        case "ciqquote":
-		case "exc":
-            return 3;
-        case "ciocase":
-            return 4;
-        case "ciqcase":
-            return 5;
-        case "neqstatus":
-        case "ciqquotestatus":
-            return 6;
-        case "ciqcratedate":
-            return 9;
-        case "doc":
-            return 11;
-        case "ciqflgformalized":
-            return 13;
-        case "ciqflgsendorder":
-            return 14;
-        case "ciqorderasset":
-            return 15;
-        case "ciqbono":
-            return 17;
-        case "ciqbonoincondicional":
-            return 18;
-        case "ciqvalidacionesok":
-            return 25;
-        case "ciqasset":
-            return 26;
-        case "ciqseltype":
-            return 27;
-        case "ciqrecordtypeid":
-            return 28;
-        case "ciqcalidad":
-            return 29;
-		default:
-            throw `getKeyCol[${elementId}] desconocida`;
-	}
-}
-
-// donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
-function CSVToArray(strData, arrAnt, strDelimiter) {
-    strDelimiter = (strDelimiter || ",");
-    arrAnt = (arrAnt || []);
-    var arrData1row = strData.split("\r\n");
-    var arrData = [];
-    for(row of arrData1row){
-        var cols = row.split(strDelimiter);
-        for(var i = 0;i<cols.length;i++) {
-            var col = cols[i];
-            if(col.charAt(0) == '"' && col.charAt(col.length-1) == '"' ) {
-                cols[i] = col.substr(1,col.length-2);
-            }
-        }
-        arrData.push(cols);
-    }
-    if(arrAnt.length>0) {
-        arrData.shift(); // se quitan los encabezados
-        arrData = arrAnt.concat(arrData);
-    }
-    return arrData;
-}
-
 // Crea el CSV ya filtrado
 function saveCSVKO() {
     console.log("save csv on KOs");
@@ -760,6 +656,111 @@ function saveCSVOK() {
     buttonSelection.removeChild(element);
 }
 
+
+
+
+/**
+ * Gestión de ficheros
+ */
+function clean(element) {
+    let elementId = element.id;
+    if(elementId.startsWith("clean")) elementId = elementId.substring(5);
+
+    if(elementId == "All") {
+        files.clear();
+        ficherosV1.forEach(function(val){
+            let element = `file${val}Text`;
+            document.getElementById(element).innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        });
+    }
+    else {
+        files.delete("file"+elementId);
+        document.getElementById("file"+elementId+"Text").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+    }
+}
+
+function fileHandler(file,elementId) {
+	if(file.name.substr(file.name.length - 4) != ".csv" ) {
+        alert("La extensión debe ser .csv");
+        return false;
+    }
+    document.getElementById(elementId+"Text").innerHTML= "LOADING FILE...  <img src='img/rainbow.png' height='20' >";
+    fileCSVToArray(file,elementId+"");
+    console.log('saving file.name['+file.name+'] on['+elementId+']');
+}
+
+//Drop invididual
+function dropHandler(ev,element) {
+	console.log('File(s) dropped');
+
+    // Prevent default behavior (Prevent file from being opened)
+    ev.preventDefault();
+	
+	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
+	
+    if (ev.dataTransfer.items) {
+        // Use DataTransferItemList interface to access the file(s)
+        for(var i = 0;i<ev.dataTransfer.items.length;i++){
+            if (ev.dataTransfer.items[i].kind === 'file') {
+                var file = ev.dataTransfer.items[i].getAsFile();
+                fileHandler(file,element.id);
+            }
+        }
+    // Use DataTransfer interface to access the file(s)
+    } else if (ev.dataTransfer.files.length > 0) {
+        for(var i = 0;i<ev.dataTransfer.files.length;i++){
+            var file = ev.dataTransfer.files[i];
+            fileHandler(file,element.id);
+        }
+    }
+	
+    // Pass event to removeDragData for cleanup
+    removeDragData(ev);
+}
+
+// Drop de varios ficheros
+function dropHandlerAll(ev) {
+	console.log('File(s) dropped');
+
+    // Prevent default behavior (Prevent file from being opened)
+    ev.preventDefault();
+	
+    if(!dropState) { alert("Can't drop files in this state, you have to refresh the page");	removeDragData(ev); return false; }
+
+    if (ev.dataTransfer.items) {
+        // Use DataTransferItemList interface to access the file(s)
+        for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+            if (ev.dataTransfer.items[i].kind === 'file') {
+                var file = ev.dataTransfer.items[i].getAsFile();
+                let elementId = dafaultElementId(file.name);
+                if (elementId == "") continue;
+				fileHandler(file,elementId);
+            }
+        }
+
+    // Use DataTransfer interface to access the file(s)
+    } else {
+        for (var i = 0; i < ev.dataTransfer.files.length; i++) {
+            var file = ev.dataTransfer.files[i];
+            let elementId = dafaultElementId(file.name);
+            if (elementId == "") continue;
+			fileHandler(file,elementId);
+        }
+    } 
+
+    // Pass event to removeDragData for cleanup
+    removeDragData(ev);
+}
+
+function dafaultElementId(fileName) {
+    if(fileName.substring(fileName.length-4) == ".csv") {
+        let filen = fileName.substring(0,fileName.length-4);
+        filen = filen.toUpperCase();
+        if(ficherosV1.includes(filen)) return `file${filen}`;
+    }
+	return "";
+}
+
 // Cosas del gragAndDrop que hice copy/paste npi que hagan
 function dragOverHandler(ev) {
     // Prevent default behavior (Prevent file from being opened)
@@ -776,4 +777,50 @@ function removeDragData(ev) {
         // Use DataTransfer interface to remove the drag data
         ev.dataTransfer.clearData();
     }
+}
+
+// Aquí convertimos el fichero en texto e inicializamos las variables para trabajar los datos
+function fileCSVToArray(file,elementId) {
+    console.log("Reading: "+elementId);
+    var fr = new FileReader();
+	fr.onload = function() {
+		document.getElementById(elementId + "Text").innerHTML = "Pocessing... <img src='img/pocessing.png' width='20' height='20' >";
+       	
+		// el timeout es solo para que pinte los estados
+		setTimeout(function () {
+			
+			var fileText = fr.result;
+            console.log("Procesing: "+elementId);
+            var arrAnt = files.get(elementId);
+			var arrprocesado = CSVToArray(fileText,arrAnt);
+			files.set(elementId,arrprocesado);
+			console.log("Done: "+elementId);
+			document.getElementById(elementId + "Text").innerHTML = "Last file: "+file.name+"["+arrprocesado.length+"] <img src='img/check.png' width='20' height='20' >";
+			
+		}, 10);
+    }
+    fr.readAsText(file); //,"ISO-8859-1");
+}
+
+// donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
+function CSVToArray(strData, arrAnt, strDelimiter) {
+    strDelimiter = (strDelimiter || ",");
+    arrAnt = (arrAnt || []);
+    var arrData1row = strData.split("\r\n");
+    var arrData = [];
+    for(row of arrData1row){
+        var cols = row.split(strDelimiter);
+        for(var i = 0;i<cols.length;i++) {
+            var col = cols[i];
+            if(col.charAt(0) == '"' && col.charAt(col.length-1) == '"' ) {
+                cols[i] = col.substr(1,col.length-2);
+            }
+        }
+        arrData.push(cols);
+    }
+    if(arrAnt.length>0) {
+        arrData.shift(); // se quitan los encabezados
+        arrData = arrAnt.concat(arrData);
+    }
+    return arrData;
 }
