@@ -6,6 +6,7 @@
 // - por cups
 // nuevo caso FI_CI_SEL_Access_channel__c == FI_CI_LKP_Quote__r.Access_channel__c tienen que ser iguales
 // solo un order por need
+// segunda vuelta
 
 /** 
  * Variables globales
@@ -123,11 +124,12 @@ let validaciones = [
             return ciqStatus == "Formalized" && ciqFlgSendOrder != "false"; 
         }
     }, {
-		priority: 16, description: "Bonos Sociales no generan CIO sobre no formalizados",
+		priority: 16, description: "Bonos Sociales de F3A inconsistente",
         validate: function(ciqStatus,ciqh) { 
-            let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
-            let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
-            return ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "true"; 
+            // F3A_CI_LKP_Social_Bonus__c, FI_CI_DAT_SocialBonusOK__c
+            let bonoF3A = ciqh[getKeyCol("ciqBonoF3A")];
+            let bonoIncondicional = ciqh[getKeyCol("ciqBonoF3AOK")];
+            return ciqStatus != "Formalized" && bonoF3A != "" && bonoIncondicional == ""; 
         }
     }, {
 		priority: 17, description: "Asset mal asociado en movimiento distinto a alta",
@@ -167,6 +169,65 @@ let validaciones = [
     }
 ];
 
+// Columnas y valores
+let columnDistribution = {
+    ciq: [
+        {alias: "main", tabla: "Id", req: true},
+        {alias: "status", tabla: "NE__Status__c", req: true},
+        {alias: "quote", tabla: "FI_CI_LKP_Quote__c", req: true},
+        {alias: "quotestatus", tabla: "FI_CI_LKP_Quote__r.NE__Status__c", req: true},
+        {alias: "need", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true},
+        {alias: "cratedate", tabla: "CreatedDate", req: true},
+        {alias: "flgformalized", tabla: "NE__OrderId__r.NE__Quote__r.Case__r.FI_CAS_FLG_Formalized__c", req: true},
+        {alias: "flgsendorder", tabla: "NE__OrderId__r.NE__Quote__r.FI_NEQ_FLG_SendOrder__c", req: true},
+        {alias: "bono", tabla: "FI_CI_FLG_RenounceSocialBonus__c", req: true},
+        {alias: "bonoincondicional", tabla: "FI_CI_FLG_UnconditionalHiringBS__c", req: true},
+        {alias: "seltype", tabla: "FI_CI_SEL_Type__c", req: true},
+        {alias: "orderasset", tabla: "NE__OrderId__r.NE__Quote__r.FI_NEQ_LKP_Asset__c", req: true},
+        {alias: "asset", tabla: "FI_CI_LKP_Asset__c", req: true},
+        {alias: "ccreq", tabla: "FI_CI_FLG_Requiere_CC__c", req: false},
+        {alias: "ccok", tabla: "FI_CI_FLG_Control_Calidad_OK__c", req: false},
+        {alias: "docreq", tabla: "FI_CI_FLG_Control_Doc_Req__c", req: false},
+        {alias: "docok", tabla: "FI_CI_FLG_Control_Doc_OK__c", req: false},
+        {alias: "cupsreq", tabla: "FI_CI_FLG_Control_Cups_Req__c", req: false},
+        {alias: "cupsok", tabla: "FI_CI_FLG_Control_Cups_OK__c", req: false},
+        {alias: "validacionesok", tabla: "FI_CI_FLG_Validaciones_OK__c", req: true},
+        {alias: "recordtype", tabla: "RecordTypeId", req: true},
+        {alias: "assetrecordtype", tabla: "FI_CI_LKP_Asset__r.RecordTypeId", req: true},
+        {alias: "assetcatalogitem", tabla: "FI_CI_LKP_Asset__r.NE__CatalogItem__c", req: true},
+        {alias: "bonof3a", tabla: "F3A_CI_LKP_Social_Bonus__c", req: true},
+        {alias: "bonof3aok", tabla: "FI_CI_DAT_SocialBonusOK__c", req: true},
+        {alias: "quoteaccesschannel", tabla: "FI_CI_LKP_Quote__r.Access_channel__c", req: true},
+        {alias: "accesschannel", tabla: "FI_CI_SEL_Access_channel__c", req: true},
+        {alias: "calidadcase", tabla: "FI_CI_LKP_Quote__r.FI_NEQ_LKP_QaCase__c", req: false},
+        {alias: "calidad", tabla: "FI_CI_LKP_Quote__r.FI_NEQ_LKP_QaCase__r.Status", req: true},
+        {alias: "calidad", tabla: "FI_CI_LKP_Quote__r.FI_NEQ_LKP_QaCase__r.FI_CAS_SEL_resultado__c", req: false},
+        {alias: "enterpiseId", tabla: "NE__AssetItemEnterpriseId__c", req: false}
+    ], 
+    cio: [
+        {alias: "main", tabla: "NE__AssetItemEnterpriseId__c", req: true},
+        {alias: "need", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true}
+    ],
+    his: [ // este es el único caso que no se redimenciona
+        {alias: "main", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true},
+        {alias: "ci", tabla: "Id", req: true},
+        {alias: "hisciq", tabla: "Observaciones historicas ciq", req: true},
+        {alias: "hiscase", tabla: "Observaciones historicas case", req: true}
+    ],
+    neq: [
+        {alias: "main", tabla: "Case__c", req: true},
+        {alias: "status", tabla: "NE__Status__c", req: true}
+    ],
+    cal: [
+        {alias: "main", tabla: "FI_CAS_LKP_CaseNeed__c", req: true}
+    ],
+    doc: [
+        {alias: "main", tabla: "FI_CAS_LKP_ConfigItem__r.FI_CI_LKP_Quote__r.Case__c", req: true}
+    ],
+    exc: [
+        {alias: "main", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true}
+    ]
+};
 
 /**
  * Función principal se compone de: 
@@ -222,12 +283,12 @@ function calculate() {
     // Sorts
     console.log("Sort ciq");
     sorter(arrCIQ,getKeyCol("ciq"));
-    console.log("Sort ciqcase");
-    sorter(arrCIQCase,getKeyCol("ciqcase"));
+    console.log("Sort ciqneed");
+    sorter(arrCIQCase,getKeyCol("ciqneed"));
     console.log("Sort cio");
     sorter(arrCIO,getKeyCol("cio"));
-    console.log("Sort ciocase");
-    sorter(arrCIOCase,getKeyCol("ciocase"));
+    console.log("Sort cioneed");
+    sorter(arrCIOCase,getKeyCol("cioneed"));
     console.log("Sort neq");
     sorter(arrNEQ,getKeyCol("neq"));
     console.log("Sort cal");
@@ -235,7 +296,7 @@ function calculate() {
     console.log("Sort doc");
     sorter(arrDOC,getKeyCol("doc"));
     console.log("Sort his");
-    sorter(arrHIS,getKeyCol("ciqcase"));
+    sorter(arrHIS,getKeyCol("his"));
     console.log("Sort exc");
     sorter(arrEXC,getKeyCol("exc"));
     console.log("Sorts FIN");
@@ -248,7 +309,7 @@ function calculate() {
     for(let ciq of arrCIQ) {
 
         let idCiq = ciq[getKeyCol("ciq")];
-        let idCase = ciq[getKeyCol("ciqCase")];
+        let idCase = ciq[getKeyCol("ciqNeed")];
         let idQuote = ciq[getKeyCol("ciqQuote")];
         let status = ciq[getKeyCol("ciqStatus")];
         let createdDate = ciq[getKeyCol("ciqCrateDate")];
@@ -280,11 +341,11 @@ function calculate() {
                 else if(buscaId(idCase,arrEXC,getKeyCol("exc"))) errorCode = VAL_EXC_EVEREST;
                 else {
                     // Busca todo lo relacionado al Case
-                    let ciqs = buscaArr(idCase,arrCIQCase,getKeyCol("ciqcase"));
-                    let cios = buscaArr(idCase,arrCIOCase,getKeyCol("ciocase"));
+                    let ciqs = buscaArr(idCase,arrCIQCase,getKeyCol("ciqNeed"));
+                    let cios = buscaArr(idCase,arrCIOCase,getKeyCol("cioNeed"));
                     let neqs = buscaArr(idCase,arrNEQ,getKeyCol("neq"));
                     let docs = buscaArr(idCase,arrDOC,getKeyCol("DOC"));
-                    let hiss = buscaArr(idCase,arrHIS,getKeyCol("ciqcase"));
+                    let hiss = buscaArr(idCase,arrHIS,getKeyCol("his"));
                     let calidad = buscaArr(idCase,arrCAL,getKeyCol("cal"));
 
                     // Validaciones sonbre ciqs
@@ -396,11 +457,11 @@ function validate() {
 }
 
 function sorter(fileElements,keyCol) {
-    let idCol = 1;
+    let idCol = 0;
     fileElements.sort(function(a,b) {
         // encabezados siempre arriba
-        if(a[idCol] == "Id") return -1;
-        if(b[idCol] == "Id") return 1;
+        if(a[idCol] == "_") return -1;
+        if(b[idCol] == "_") return 1;
         // sort de javascript que el de salesforce va como el culo
         return a[keyCol].toLowerCase().localeCompare(b[keyCol].toLowerCase());
         });	
@@ -422,7 +483,7 @@ function getHis(his,idCiq) {
         while(hist[caseHist]=="" && caseHist > 0)caseHist--;
 
         if(i==0) msgCase = hist[caseHist];
-        if(hist[getKeyCol("ciq")]==idCiq) {
+        if(hist[getKeyCol("his")]==idCiq) {
             msgCiq = hist[caseHist-1];
             msgCase = hist[caseHist];
         }
@@ -486,53 +547,19 @@ function binarySearch(id,arrCSV,column, start, end){
 // A cada resultado del fichero hay una columna clave de comparación aqui se define ese campo
 function getKeyCol(elementId) {
 	var eId = elementId.toLowerCase();
-	if(eId.startsWith("file")) eId = eId.substring(4);
-	switch(eId) {
-		case "ciq":
-        	return 1;
-		case "cio":
-        case "neq":
-        case "cal":
-        case "documentacionciqid":
-        case "ciqstatus":
-            return 2;
-        case "ciqquote":
-		case "exc":
-            return 3;
-        case "ciocase":
-            return 4;
-        case "ciqcase":
-            return 5;
-        case "neqstatus":
-        case "ciqquotestatus":
-            return 6;
-        case "ciqcratedate":
-            return 9;
-        case "doc":
-            return 11;
-        case "ciqflgformalized":
-            return 13;
-        case "ciqflgsendorder":
-            return 14;
-        case "ciqorderasset":
-            return 15;
-        case "ciqbono":
-            return 17;
-        case "ciqbonoincondicional":
-            return 18;
-        case "ciqvalidacionesok":
-            return 25;
-        case "ciqasset":
-            return 26;
-        case "ciqseltype":
-            return 27;
-        case "ciqrecordtypeid":
-            return 28;
-        case "ciqcalidad":
-            return 29;
-		default:
-            throw `getKeyCol[${elementId}] desconocida`;
-	}
+    if(eId.startsWith("file")) eId = eId.substring(4);
+    var tabla = eId.substring(0,3);
+    var campo = "main";
+    if(eId.length>3) campo = eId.substring(3);
+
+    var arrTabla=columnDistribution[tabla];
+    if(arrTabla == null) throw `getKeyCol[${elementId}] con tabla[${tabla}] desconocida`;
+
+    for(var i=0;i<arrTabla.length;i++) {
+        if(arrTabla[i].alias == campo) return i+1;
+    }
+
+    throw `getKeyCol[${elementId}] con tabla[${tabla}] campo[${campo}] desconocida`;
 }
 
 
@@ -792,7 +819,13 @@ function fileCSVToArray(file,elementId) {
 			var fileText = fr.result;
             console.log("Procesing: "+elementId);
             var arrAnt = files.get(elementId);
-			var arrprocesado = CSVToArray(fileText,arrAnt);
+            arrAnt = (arrAnt || []);
+            var arrprocesado = CSVToArray(fileText,null,elementId, file.name);
+            //arrprocesado = reacomoda(arrprocesado, elementId, file.name);
+            if(arrAnt.length>0) {
+                arrprocesado.shift(); // se quitan los encabezados
+                arrprocesado = arrAnt.concat(arrprocesado);
+            }
 			files.set(elementId,arrprocesado);
 			console.log("Done: "+elementId);
 			document.getElementById(elementId + "Text").innerHTML = "Last file: "+file.name+"["+arrprocesado.length+"] <img src='img/check.png' width='20' height='20' >";
@@ -802,25 +835,55 @@ function fileCSVToArray(file,elementId) {
     fr.readAsText(file); //,"ISO-8859-1");
 }
 
-// donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
-function CSVToArray(strData, arrAnt, strDelimiter) {
-    strDelimiter = (strDelimiter || ",");
-    arrAnt = (arrAnt || []);
-    var arrData1row = strData.split("\r\n");
-    var arrData = [];
-    for(row of arrData1row){
-        var cols = row.split(strDelimiter);
-        for(var i = 0;i<cols.length;i++) {
-            var col = cols[i];
+function reacomoda(arrTittles,elementId,filename) {
+    if(arrTittles == null || arrTittles.length == 0) return [];
+    let eId = elementId.toLowerCase();
+    if(eId.startsWith("file")) eId = eId.substring(4);
+    let arrCampos = columnDistribution[eId];
+    if(arrCampos == null) throw `reacomodaCIQ sin columnDistribution para [${eId}] (original[${elementId}] file[${filename}])`;
+    var ordenCampos = [0]; // la columna 0 siempre se mantiene
+    for(var i=0;i<arrCampos.length;i++) {
+        var encontrado = false;
+        let campo = arrCampos[i].tabla;
+        for(var j=0;j<arrTittles.length&&!encontrado;j++) {
+            var col = arrTittles[j];
             if(col.charAt(0) == '"' && col.charAt(col.length-1) == '"' ) {
-                cols[i] = col.substr(1,col.length-2);
+                arrTittles[j] = col.substr(1,col.length-2);
+            }
+            if(campo == arrTittles[j]) {
+                encontrado = true;
+                ordenCampos.push(j);
             }
         }
-        arrData.push(cols);
+        if(!encontrado) throw `Para el fichero[${filename}] no se encuentra la columna[${campo}] en la tabla[${eId}]`;
     }
-    if(arrAnt.length>0) {
-        arrData.shift(); // se quitan los encabezados
-        arrData = arrAnt.concat(arrData);
+    return ordenCampos;
+}
+
+// donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
+function CSVToArray(strData, strDelimiter,elementId,filename) {
+    strDelimiter = (strDelimiter || ",");
+    var arrData1row = strData.split("\r\n");
+    var arrData = [];
+    var ordenCampos = [];
+    for(row of arrData1row){
+        var cols = row.split(strDelimiter);
+        var colsRe = [];
+
+        if(cols[0] == '_' || cols[0] == '"_"') {
+            ordenCampos = reacomoda(cols,elementId,filename);
+        }
+        
+        for(var i=0;i<ordenCampos.length;i++) {
+            var pos = ordenCampos[i];
+            var valcol = cols[pos];
+            if(valcol.charAt(0) == '"' && valcol.charAt(valcol.length-1) == '"' ) {
+                valcol = valcol.substr(1,valcol.length-2);
+            }
+            colsRe.push(valcol);
+        }
+        
+        arrData.push(colsRe);
     }
     return arrData;
 }
