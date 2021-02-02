@@ -149,6 +149,13 @@ let validaciones = [
             return ciqStatus == "Formalized" && ciqRecordTypeId == ""; 
         }
     }, {
+        priority: 20, description: "AccessChannel distintos entre quote y ciq",
+        validate: function(ciqStatus,ciqh) {
+            let ciqQuoteAccessChannel = ciqh[getKeyCol("ciqQuoteAccessChannel")];
+            let ciqAccessChannel = ciqh[getKeyCol("ciqAccessChannel")];
+            return ciqStatus == "Formalized" && ciqQuoteAccessChannel != ciqAccessChannel;
+        }
+    }, {
 		priority: VAL_W_TMQ, description: "Muchos ciqs en la misma necesidad",
         validate: function(ciqStatus,ciqh) { return false; },
     }, {
@@ -556,7 +563,7 @@ function getKeyCol(elementId) {
     if(arrTabla == null) throw `getKeyCol[${elementId}] con tabla[${tabla}] desconocida`;
 
     for(var i=0;i<arrTabla.length;i++) {
-        if(arrTabla[i].alias == campo) return i+1;
+        if(arrTabla[i].alias == campo) return i+1; // es importante el +1 pues 0 siempre es "_"
     }
 
     throw `getKeyCol[${elementId}] con tabla[${tabla}] campo[${campo}] desconocida`;
