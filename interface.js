@@ -44,14 +44,14 @@ let validaciones = [
         priority:VAL_EXC_EVEREST, description: "Casos en Everest pendiente de cancelacion",
         validate: function(ciqStatus, ciqh) { return false; }
     }, {
-        priority: VAL_BONO_SOCIAL, description: "Casos en Everest pendiente de cancelacion",
+        priority: VAL_BONO_SOCIAL, description: "Bonos Sociales no generan CIO",
         validate: function(ciqStatus,ciqh) { 
             let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
             let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
             return ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false"; 
         }
     }, {
-        priority: VAL_PTE_BATCH, description: "Bonos Sociales no generan CIO",
+        priority: VAL_PTE_BATCH, description: "Necesidad pendiente de Batch",
         validate: function(ciqStatus,ciqh) { 
             return ciqStatus == "Pending"; 
         }
@@ -145,8 +145,8 @@ let validaciones = [
     }, {
 		priority: 19, description: "RecordTypeId sin informar sobre CI N1",
         validate: function(ciqStatus,ciqh) { 
-            let ciqRecordTypeId = ciqh[getKeyCol("ciqRecordTypeId")];
-            return ciqStatus == "Formalized" && ciqRecordTypeId == ""; 
+            let ciqRecordType = ciqh[getKeyCol("ciqRecordType")];
+            return ciqStatus == "Formalized" && ciqRecordType == ""; 
         }
     }, {
         priority: 20, description: "AccessChannel distintos entre quote y ciq",
@@ -579,14 +579,15 @@ function getMensaje(errorCode) {
     if(!codeResult[errorCode]) codeResult[errorCode]=0;
     codeResult[errorCode]++;
 
+    let mesage = "Error desconocido";
+
     validaciones.forEach(function(validacion){
         if(errorCode == validacion.priority) {
-            let desc = validacion.description;
-            return `[${errorCode}] ${desc}`;
+            mesage = validacion.description;
         }
     });
 
-    return `[${errorCode}] Error desconocido`;
+    return `[${errorCode}] ${mesage}`;
 }
 
 // Gestión de resultado
