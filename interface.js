@@ -1,120 +1,257 @@
-// Variables globales
+// TODO:
+// caso 4 puede ser por:
+// - calidad
+// - documentación
+// - por bono F3A  -- F3A_CI_LKP_Social_Bonus__c, FI_CI_DAT_SocialBonusOK__c si lo tiene es que tiene gestión de bono social
+// - por cups
+// nuevo caso FI_CI_SEL_Access_channel__c == FI_CI_LKP_Quote__r.Access_channel__c tienen que ser iguales
+// solo un order por need
+// segunda vuelta
+
+/** 
+ * Variables globales
+ * */ 
 var files = new Map(); // Datos de un fichero
 var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos KO
 var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
 var dropState = true; // Estado en que se puede agregar ficheros
 var codeResult = [];
+var segundoInformeId = [];
+var segundoInformeAsset = [];
 
-function fileHandler(file,elementId) {
-	if(file.name.substr(file.name.length - 4) != ".csv" ) {
-        alert("La extensión debe ser .csv");
-        return false;
-    }
-    document.getElementById(elementId+"Text").innerHTML= "LOADING FILE...  <img src='img/rainbow.png' height='20' >";
-    fileCSVToArray(file,elementId+"");
-    console.log('saving file.name['+file.name+'] on['+elementId+']');
-}
+/**
+ * Constantes
+ */
+const VAL_CIQ_SIN_CASE = 0;   // Formalizada sin case wtf "CIQ sin Caso asignado"
+const VAL_EXC_EVEREST  = 1;   // "Casos en Everest pendiente de cancelación"
+const VAL_BONO_SOCIAL  = 2;   // bonos "Bonos Sociales no generan CIO"
+const VAL_PTE_BATCH    = 3;   // Quotes Pending o CIQ Pending "Necesidad pendiente de Batch"
+const VAL_DOC_INC      = 11;  // Casos de calidad Documentación pendientes "Tienen casos de documentación pendientes sobre estados inconsistentes"
+const VAL_CIO_HERMANOS = 12;  // ya hay CIOs hermanos "Ya hay cios en esta necesidad"** estos a Negocio
+const VAL_QUOTE_INC    = 14;  // quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente" -- ver historicos y si switching esta presente escalar
+const VAL_CAL_SIN_QUO  = 18;  // Caso de calidad abierto sin Quote/CIO asignado -- Estos casos a Jony, para que nos digan que hacer.
+const VAL_W_TMQ        = 50;  // muchas CIQS "Muchos ciqs en la misma necesidad"
+const VAL_W_OK         = 100;
 
-//Drop invididual
-function dropHandler(ev,element) {
-	console.log('File(s) dropped');
+const ficherosV1 = ["CIQ","CIO","HIS","NEQ","CAL","DOC","EXC"];
 
-    // Prevent default behavior (Prevent file from being opened)
-    ev.preventDefault();
-	
-	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
-	
-	var file = null;
-    if (ev.dataTransfer.items) {
-        // Use DataTransferItemList interface to access the file(s)
-        if (ev.dataTransfer.items[0].kind === 'file') {
-            file = ev.dataTransfer.items[0].getAsFile();
+// Validaciones:
+let validaciones = [
+    {
+        priority: VAL_CIQ_SIN_CASE, description: "CIQ sin Caso asignado",
+        validate: function(ciqStatus, ciqh) { return false; }
+    }, {
+        priority:VAL_EXC_EVEREST, description: "Casos en Everest pendiente de cancelacion",
+        validate: function(ciqStatus, ciqh) { return false; }
+    }, {
+        priority: VAL_BONO_SOCIAL, description: "Bonos Sociales no generan CIO",
+        validate: function(ciqStatus,ciqh) { 
+            let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
+            let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
+            return ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false"; 
         }
-    // Use DataTransfer interface to access the file(s)
-    } else if (ev.dataTransfer.files.length > 0) {
-        file = ev.dataTransfer.files[0];
-    }
-	
-	fileHandler(file,element.id);
-	
-    // Pass event to removeDragData for cleanup
-    removeDragData(ev);
-}
-
-// Drop de varios ficheros
-function dropHandlerAll(ev) {
-	console.log('File(s) dropped');
-
-    // Prevent default behavior (Prevent file from being opened)
-    ev.preventDefault();
-	
-    if(!dropState) { alert("Can't drop files in this state, you have to refresh the page");	removeDragData(ev); return false; }
-
-    if (ev.dataTransfer.items) {
-        // Use DataTransferItemList interface to access the file(s)
-        for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-            if (ev.dataTransfer.items[i].kind === 'file') {
-                var file = ev.dataTransfer.items[i].getAsFile();
-                let elementId = dafaultElementId(file.name);
-                if (elementId == "") continue;
-				fileHandler(file,elementId);
-            }
+    }, {
+        priority: VAL_PTE_BATCH, description: "Necesidad pendiente de Batch",
+        validate: function(ciqStatus,ciqh) { 
+            return ciqStatus == "Pending"; 
         }
-
-    // Use DataTransfer interface to access the file(s)
-    } else {
-        for (var i = 0; i < ev.dataTransfer.files.length; i++) {
-            var file = ev.dataTransfer.files[i];
-            let elementId = dafaultElementId(file.name);
-            if (elementId == "") continue;
-			fileHandler(file,elementId);
+    }, {
+		priority: 4, description: "Caso de Calidad o Documentacion pendiente de finalizar",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            return ciqStatus == "In Review" && ciqQuoteStatus == "In-Transit"; 
         }
-    } 
-
-    // Pass event to removeDragData for cleanup
-    removeDragData(ev);
-}
-
-function dafaultElementId(fileName) {
-	let elementId = "";
-	if (fileName == "ciq.csv") elementId = "fileCIQ";
-    else if (fileName == "cio.csv") elementId = "fileCIO";
-    else if (fileName == "neq.csv") elementId = "fileNEQ";
-    else if (fileName == "documents.csv") elementId = "fileDocuments";
-    else if (fileName == "historico.csv") elementId = "fileHistorico";
-    else if (fileName == "exceptions.csv") elementId = "fileExceptions";
-	
-	return elementId;
-}
-
-function sorter(fileElements,keyCol) {
-    let idCol = 1;
-    fileElements.sort(function(a,b) {
-        // encabezados siempre arriba
-        if(a[idCol] == "Id") return -1;
-        if(b[idCol] == "Id") return 1;
-        // sort de javascript que el de salesforce va como el culo
-        return a[keyCol].toLowerCase().localeCompare(b[keyCol].toLowerCase());
-        });	
-}
-
-function validate(){
-    if(!files.has("fileCIQ") || !files.has("fileCIO") || !files.has("fileHistorico") || 
-    !files.has("fileNEQ") || !files.has("fileDocuments") || !files.has("fileExceptions") ) {
-        document.getElementById("calculateBotton").disabled = false;
-		dropState = true;
-        let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
-        resultado.appendChild(res);
-        return false;
+    }, {
+		priority: 5, description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
+        validate: function(ciqStatus,ciqh) {
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            return ciqStatus == "Pending_after_BO" && ciqQuoteStatus == "In-Transit"; 
+        }
+    }, {
+		priority: 6, description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
+        validate: function(ciqStatus,ciqh) {
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            return ciqStatus == "Signature_pending" && ciqQuoteStatus == "In-Transit"; 
+        }
+    }, {
+		priority: 7, description: "Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion",
+        validate: function(ciqStatus,ciqh) {
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            let ciqFlgFormalized = ciqh[getKeyCol("ciqFlgFormalized")].toLowerCase();
+            return ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit" && ciqFlgFormalized == "false"; 
+        }
+    }, {
+		priority: 8, description: "Pendiente formalizar con flag inconsitente",
+        validate: function(ciqStatus,ciqh) {
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            return ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit"; 
+        }
+    }, {
+		priority: 9, description: "Tienen casos de calidad pendientes sobre formalizados",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
+            return ciqStatus == "Formalized" && ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
+            ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved"  && 
+            ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica"; 
+        }
+    }, {
+		priority: 10, description: "Tienen casos de calidad pendientes",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
+            return ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
+            ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && 
+            ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica"; 
+        }
+    }, {
+		priority: VAL_DOC_INC, description: "Tienen casos de documentación pendientes sobre estados inconsitentes",
+        validate: function(ciqStatus,ciqh) { return false; }
+    }, {
+		priority: VAL_CIO_HERMANOS, description: "Ya hay cios en esta necesidad",
+        validate: function(ciqStatus,ciqh) { return false; }
+    }, {
+		priority: 13, description: "Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            return ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending"; 
+        }
+    }, {
+		priority: VAL_QUOTE_INC, description: "Necesidad con Quote en estado inconsistente",
+        validate: function(ciqStatus,ciqh) { return false; }
+    }, {
+		priority: 15, description: "Proceso de creación de CIO finalizado",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqFlgSendOrder = ciqh[getKeyCol("ciqFlgSendOrder")].toLowerCase();
+            return ciqStatus == "Formalized" && ciqFlgSendOrder != "false"; 
+        }
+    }, {
+		priority: 16, description: "Bonos Sociales de F3A inconsistente",
+        validate: function(ciqStatus,ciqh) { 
+            // F3A_CI_LKP_Social_Bonus__c, FI_CI_DAT_SocialBonusOK__c
+            let bonoF3A = ciqh[getKeyCol("ciqBonoF3A")];
+            let bonoIncondicional = ciqh[getKeyCol("ciqBonoF3AOK")];
+            return ciqStatus != "Formalized" && bonoF3A != "" && bonoIncondicional == ""; 
+        }
+    }, {
+		priority: 17, description: "Asset mal asociado en movimiento distinto a alta",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqseltype = ciqh[getKeyCol("ciqseltype")];
+            let ciqasset = ciqh[getKeyCol("ciqasset")];
+            let ciqorderasset = ciqh[getKeyCol("ciqorderasset")];
+            return ciqStatus == "Formalized" && ciqseltype != "A" && (ciqasset == "" || ciqasset != ciqorderasset); 
+        }
+    }, {
+		priority: VAL_CAL_SIN_QUO, description: "Caso de calidad abierto sin Quote/CIO asignado",
+        validate: function(ciqStatus,ciqh) { return false; }
+    }, {
+		priority: 19, description: "RecordTypeId sin informar sobre CI N1",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqRecordType = ciqh[getKeyCol("ciqRecordType")];
+            return ciqStatus == "Formalized" && ciqRecordType == ""; 
+        }
+    }, {
+        priority: 20, description: "AccessChannel distintos entre quote y ciq",
+        validate: function(ciqStatus,ciqh) {
+            let ciqQuoteAccessChannel = ciqh[getKeyCol("ciqQuoteAccessChannel")];
+            let ciqAccessChannel = ciqh[getKeyCol("ciqAccessChannel")];
+            return ciqStatus == "Formalized" && ciqQuoteAccessChannel != ciqAccessChannel;
+        }
+    }, {
+		priority: VAL_W_TMQ, description: "Muchos ciqs en la misma necesidad",
+        validate: function(ciqStatus,ciqh) { return false; },
+    }, {
+		priority: 51, description: "Validaciones de CC y CD saltadas",
+        validate: function(ciqStatus,ciqh) { 
+            let flagValidacionesOK = ciqh[getKeyCol("ciqValidacionesOK")].toLowerCase();
+            return ciqStatus == "Formalized" && flagValidacionesOK != "true";
+        }
+    }, {
+		priority: 52, description: "Quote CRM_Transfer_Pending sobre CIQ Cancelled",
+        validate: function(ciqStatus,ciqh) { 
+            let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
+            return ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending"; 
+        }
+    }, {
+		priority: VAL_W_OK, description: "OK relanzar",
+        validate: function(ciqStatus,ciqh) { return true; }
     }
-    console.log("Valitations OK");
-    return true;
-}
+];
 
-// Valida y calcula el resultado
+// Columnas y valores
+let columnDistribution = {
+    ciq: [
+        {alias: "main", tabla: "Id", req: true},
+        {alias: "status", tabla: "NE__Status__c", req: true},
+        {alias: "quote", tabla: "FI_CI_LKP_Quote__c", req: true},
+        {alias: "quotestatus", tabla: "FI_CI_LKP_Quote__r.NE__Status__c", req: true},
+        {alias: "need", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true},
+        {alias: "cratedate", tabla: "CreatedDate", req: true},
+        {alias: "flgformalized", tabla: "NE__OrderId__r.NE__Quote__r.Case__r.FI_CAS_FLG_Formalized__c", req: true},
+        {alias: "flgsendorder", tabla: "NE__OrderId__r.NE__Quote__r.FI_NEQ_FLG_SendOrder__c", req: true},
+        {alias: "bono", tabla: "FI_CI_FLG_RenounceSocialBonus__c", req: true},
+        {alias: "bonoincondicional", tabla: "FI_CI_FLG_UnconditionalHiringBS__c", req: true},
+        {alias: "seltype", tabla: "FI_CI_SEL_Type__c", req: true},
+        {alias: "orderasset", tabla: "NE__OrderId__r.NE__Quote__r.FI_NEQ_LKP_Asset__c", req: true},
+        {alias: "asset", tabla: "FI_CI_LKP_Asset__c", req: true},
+        {alias: "ccreq", tabla: "FI_CI_FLG_Requiere_CC__c", req: false},
+        {alias: "ccok", tabla: "FI_CI_FLG_Control_Calidad_OK__c", req: false},
+        {alias: "docreq", tabla: "FI_CI_FLG_Control_Doc_Req__c", req: false},
+        {alias: "docok", tabla: "FI_CI_FLG_Control_Doc_OK__c", req: false},
+        {alias: "cupsreq", tabla: "FI_CI_FLG_Control_Cups_Req__c", req: false},
+        {alias: "cupsok", tabla: "FI_CI_FLG_Control_Cups_OK__c", req: false},
+        {alias: "validacionesok", tabla: "FI_CI_FLG_Validaciones_OK__c", req: true},
+        {alias: "recordtype", tabla: "RecordTypeId", req: true},
+        {alias: "assetrecordtype", tabla: "FI_CI_LKP_Asset__r.RecordTypeId", req: true},
+        {alias: "assetcatalogitem", tabla: "FI_CI_LKP_Asset__r.NE__CatalogItem__c", req: true},
+        {alias: "bonof3a", tabla: "F3A_CI_LKP_Social_Bonus__c", req: true},
+        {alias: "bonof3aok", tabla: "FI_CI_DAT_SocialBonusOK__c", req: true},
+        {alias: "quoteaccesschannel", tabla: "FI_CI_LKP_Quote__r.Access_channel__c", req: true},
+        {alias: "accesschannel", tabla: "FI_CI_SEL_Access_channel__c", req: true},
+        {alias: "calidadcase", tabla: "FI_CI_LKP_Quote__r.FI_NEQ_LKP_QaCase__c", req: false},
+        {alias: "calidad", tabla: "FI_CI_LKP_Quote__r.FI_NEQ_LKP_QaCase__r.Status", req: true},
+        {alias: "calidad", tabla: "FI_CI_LKP_Quote__r.FI_NEQ_LKP_QaCase__r.FI_CAS_SEL_resultado__c", req: false},
+        {alias: "enterpiseId", tabla: "NE__AssetItemEnterpriseId__c", req: false}
+    ], 
+    cio: [
+        {alias: "main", tabla: "NE__AssetItemEnterpriseId__c", req: true},
+        {alias: "need", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true}
+    ],
+    his: [ // este es el único caso que no se redimenciona
+        {alias: "main", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true},
+        {alias: "ci", tabla: "Id", req: true},
+        {alias: "hisciq", tabla: "Observaciones historicas ciq", req: true},
+        {alias: "hiscase", tabla: "Observaciones historicas case", req: true}
+    ],
+    neq: [
+        {alias: "main", tabla: "Case__c", req: true},
+        {alias: "status", tabla: "NE__Status__c", req: true}
+    ],
+    cal: [
+        {alias: "main", tabla: "FI_CAS_LKP_CaseNeed__c", req: true}
+    ],
+    doc: [
+        {alias: "main", tabla: "FI_CAS_LKP_ConfigItem__r.FI_CI_LKP_Quote__r.Case__c", req: true}
+    ],
+    exc: [
+        {alias: "main", tabla: "FI_CI_LKP_Quote__r.Case__c", req: true}
+    ]
+};
+
+/**
+ * Función principal se compone de: 
+ * - Validación de entrada y gestión de pagina
+ * - Getión de datos (Sort): Las busquedas de datos son con el algoritmo bianrio, lo que obliga a que los datos esten ordenados (Sort)
+ * - Revisión de informes
+ * - Mostrar resultados en página
+ */
 function calculate() {
-	// Desactivamos botones
+    ////////////// Validación de entrada y gestión de pagina
+    // Desactivamos botones:
     document.getElementById("calculateBotton").disabled = true;
+    ficherosV1.forEach(function(fchName) {
+        document.getElementById(`clean${fchName}`).disabled = true;
+    });
+    document.getElementById("cleanAll").disabled = true;
+    
 	dropState = false;
     document.getElementById("getCsvKO").disabled = true;
     document.getElementById("getCsvOK").disabled = true;
@@ -137,44 +274,53 @@ function calculate() {
     // validaciones
     if(!validate()) return false;
 	
-	// obtenermos la info de los ficheros en variables locales
+    
+    
+    ////////////// Getión de datos (Sort)
     var arrCIQ = files.get("fileCIQ");
     var arrCIQCase = arrCIQ.filter(() => true);
     var arrCIO = files.get("fileCIO");
     var arrCIOCase = arrCIO.filter(() => true);
     var arrNEQ = files.get("fileNEQ");
-    var arrDocuments = files.get("fileDocuments");
-    var arrHistorico = files.get("fileHistorico");
-    var arrExceptions = files.get("fileExceptions");
+    var arrCAL = files.get("fileCAL");
+    var arrDOC = files.get("fileDOC");
+    var arrHIS = files.get("fileHIS");
+    var arrEXC = files.get("fileEXC");
     
     // Sorts
     console.log("Sort ciq");
     sorter(arrCIQ,getKeyCol("ciq"));
-    console.log("Sort ciqcase");
-    sorter(arrCIQCase,getKeyCol("ciqcase"));
+    console.log("Sort ciqneed");
+    sorter(arrCIQCase,getKeyCol("ciqneed"));
     console.log("Sort cio");
     sorter(arrCIO,getKeyCol("cio"));
-    console.log("Sort ciocase");
-    sorter(arrCIOCase,getKeyCol("ciocase"));
+    console.log("Sort cioneed");
+    sorter(arrCIOCase,getKeyCol("cioneed"));
     console.log("Sort neq");
     sorter(arrNEQ,getKeyCol("neq"));
-    console.log("Sort documents");
-    sorter(arrDocuments,getKeyCol("documents"));
-    console.log("Sort historico");
-    sorter(arrHistorico,getKeyCol("ciqcase"));
-    console.log("Sort exceptions");
-    sorter(arrExceptions,getKeyCol("exceptions"));
+    console.log("Sort cal");
+    sorter(arrCAL,getKeyCol("cal"));
+    console.log("Sort doc");
+    sorter(arrDOC,getKeyCol("doc"));
+    console.log("Sort his");
+    sorter(arrHIS,getKeyCol("his"));
+    console.log("Sort exc");
+    sorter(arrEXC,getKeyCol("exc"));
     console.log("Sorts FIN");
 
-    // Va lo bueno
+    
+    
+    
+    ////////////// Revisión de informes
     console.log("Look for cases: INI");
     for(let ciq of arrCIQ) {
 
         let idCiq = ciq[getKeyCol("ciq")];
-        let idCase = ciq[getKeyCol("ciqCase")];
+        let idCase = ciq[getKeyCol("ciqNeed")];
         let idQuote = ciq[getKeyCol("ciqQuote")];
         let status = ciq[getKeyCol("ciqStatus")];
         let createdDate = ciq[getKeyCol("ciqCrateDate")];
+        let asset = ciq[getKeyCol("ciqorderasset")];
 
         // si es el primer renglon de títulos
         if(idCiq == "Id") {
@@ -196,91 +342,51 @@ function calculate() {
                 if(conPedido % 20000 == 0) console.log(conPedido + " pedidos encontrados hasta el momento");
             // Sin CIO
             } else {
-                let errorCode = 100;
+                let errorCode = VAL_W_OK;
                 let histo=[];
-                if(idCase == "") errorCode = 0;
-                else if(buscaId(idCase,arrExceptions,getKeyCol("exceptions"))) errorCode = 1;
+                if(idCase == "") errorCode = VAL_CIQ_SIN_CASE;
+                else if(buscaId(idCase,arrEXC,getKeyCol("exc"))) errorCode = VAL_EXC_EVEREST;
                 else {
                     // Busca todo lo relacionado al Case
-                    let ciqs = buscaArr(idCase,arrCIQCase,getKeyCol("ciqcase"));
-                    let cios = buscaArr(idCase,arrCIOCase,getKeyCol("ciocase"));
+                    let ciqs = buscaArr(idCase,arrCIQCase,getKeyCol("ciqNeed"));
+                    let cios = buscaArr(idCase,arrCIOCase,getKeyCol("cioNeed"));
                     let neqs = buscaArr(idCase,arrNEQ,getKeyCol("neq"));
-                    let documents = buscaArr(idCase,arrDocuments,getKeyCol("documents"));
-                    let historicos = buscaArr(idCase,arrHistorico,getKeyCol("ciqcase"));
-
-                    // 0 Formalizada sin case wtf "CIQ sin Caso asignado"
-                    // 1 "Casos en Everest pendiente de cancelación"
-                    // 2 bonos "Bonos Sociales no generan CIO"
-                    // 3 Quotes Pending o CIQ Pending "Necesidad pendiente de Batch"
-                    // 4 Calidad/Docs In-Transit In Review "Caso de Calidad o Documentación pendiente de finalizar"
-                    // 5 Calidad/Docs In-Transit Pending_after_BO	"Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
-                    // 6 Calidad/Docs In-Transit Signature_pending "Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
-                    // 7 Calidad/Docs In-Transit Signed "Pendiente formalizar neuvamente tras rechazo de caso de Calidad o Documentación"
-                    // 8 Casos de calidad Pendientes saltados sobre Formalizados "Tienen casos de calidad pendientes sobre formalizados"
-                    // 9 Casos de calidad Pendientes saltados sobre Cancelados "Tienen casos de calidad pendientes"
-                    // 10 Casos de calidad Documentación pendientes "Tienen casos de documentación pendientes"
-                    // 11 ya hay CIOs hermanos "Ya hay cios en esta necesidad"**
-                    // 12 Formalized sobre quote no CRM_Transfer_Pending "Quote inconsitente sobre CIQ Formalizado"
-                    // 13 quote en un estado distino de Closed o CRM_Transfer_Pending "Necesidad con Quote en estado inconsitente"
-                    // 14 FI_NEQ_FLG_SendOrder__c "Proceso de creación de CIO finalizado"
-                    // 15 "Bonos Sociales no generan CIO sobre no formalizados"
-                    //-- warnings de relanzamiento:
-                    // 50 muchas CIQS "Muchos ciqs en la misma necesidad"
-                    // 51 FI_CI_FLG_Validaciones_OK__c = false "Validaciones de CC y CD saltadas"
-                    // 52 CRM_Transfer_Pending Cancelled "Quote CRM_Transfer_Pending sobre CIQ Cancelled"
-                    // 100 OK relanzar "Relanzar"
+                    let docs = buscaArr(idCase,arrDOC,getKeyCol("DOC"));
+                    let hiss = buscaArr(idCase,arrHIS,getKeyCol("his"));
+                    let calidad = buscaArr(idCase,arrCAL,getKeyCol("cal"));
 
                     // Validaciones sonbre ciqs
                     for(var iciq = 0;iciq<ciqs.length;iciq++) {
                         let ciqh =ciqs[iciq];
-
-                        // variables
-                        let ciqId = ciqh[getKeyCol("ciq")];
                         let ciqStatus = ciqh[getKeyCol("ciqStatus")];
-                        let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
-                        let bono = ciqh[getKeyCol("ciqBono")].toLowerCase();
-                        let bonoIncondicional = ciqh[getKeyCol("ciqBonoinCondicional")].toLowerCase();
-                        let flagValidacionesOK = ciqh[getKeyCol("ciqValidacionesOK")].toLowerCase();
-                        let ciqCalidad = ciqh[getKeyCol("ciqCalidad")];
-                        let ciqFlgSendOrder = ciqh[getKeyCol("ciqFlgSendOrder")].toLowerCase();
 
-                        if(ciqStatus == "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 2) errorCode = 2;
-                        else if(ciqStatus == "Pending" && errorCode > 3) errorCode = 3;
-                        else if(ciqStatus == "In Review" && ciqQuoteStatus == "In-Transit" && errorCode > 4) errorCode = 4;
-                        else if(ciqStatus == "Pending_after_BO" && ciqQuoteStatus == "In-Transit" && errorCode > 5) errorCode = 5;
-                        else if(ciqStatus == "Signature_pending" && ciqQuoteStatus == "In-Transit" && errorCode > 6) errorCode = 6;
-                        else if(ciqStatus == "Signed" && ciqQuoteStatus == "In-Transit" && errorCode > 7) errorCode = 7;
-                        else if(ciqStatus == "Formalized" && ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
-                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved"  && 
-						ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica" && errorCode > 8) errorCode = 8;
-                        else if(ciqCalidad != "" && ciqCalidad != "Closed" && ciqCalidad != "Resuelto Motivo: Responsable endesa" && 
-                        ciqCalidad != "Resuelto Motivo: Cancelacion Front" && ciqCalidad != "Resolved" && 
-						ciqCalidad != "Resuelto Motivo: Formalización automática" && ciqCalidad != "Resuelto Motivo: FormalizaciÃ³n automÃ¡tica" && errorCode > 9) errorCode = 9;
-                        else if(documents.length > 0 && errorCode > 10) errorCode = 10;
-                        else if(ciqStatus == "Formalized" && ciqQuoteStatus != "CRM_Transfer_Pending" && errorCode > 12) errorCode = 12;
-                        else if(ciqStatus == "Formalized" && ciqFlgSendOrder != "false" && errorCode > 14) errorCode = 14;
-						else if(ciqStatus != "Formalized" && bono == "true" && bonoIncondicional == "false" && errorCode > 15) errorCode = 15;
-                        else if(ciqStatus == "Formalized" && flagValidacionesOK != "true" && errorCode > 51) errorCode = 51;
-                        else if(ciqStatus == "Cancelled" && ciqQuoteStatus == "CRM_Transfer_Pending" && errorCode > 52) errorCode = 52;
+                        validaciones.forEach(function(validacion){
+                            if(errorCode > validacion.priority && validacion.validate(ciqStatus,ciqh)) {
+                                errorCode = validacion.priority;
+                            }
+                        });
+
                     }
                     
                     // validaciones del NEQ
                     for(var ineq=0;ineq<neqs.length;ineq++) {
                         let neqLocal =  neqs[ineq];
                         let neqStatus = neqLocal[getKeyCol("neqStatus")];
-                        if(neqStatus == "Pending" && errorCode > 3) errorCode = 3;
-                        else if(neqStatus != "Closed" && neqStatus != "CRM_Transfer_Pending" && errorCode > 13) errorCode = 13;
+                        if(neqStatus == "Pending" && errorCode > VAL_PTE_BATCH) errorCode = VAL_PTE_BATCH;
+                        else if(neqStatus != "Closed" && neqStatus != "CRM_Transfer_Pending" && errorCode > VAL_QUOTE_INC) errorCode = VAL_QUOTE_INC;
                     }
 
                     // Otras validaciones
-                    if(ciqs.length > 6 && errorCode > 50) errorCode = 50;
-                    if(cios.length > 0 && errorCode > 11)  errorCode = 11;
+                    if(docs.length > 0 && errorCode > VAL_DOC_INC) errorCode = VAL_DOC_INC;
+                    if(ciqs.length > 6 && errorCode > VAL_W_TMQ) errorCode = VAL_W_TMQ;
+                    if(cios.length > 0 && errorCode > VAL_CIO_HERMANOS)  errorCode = VAL_CIO_HERMANOS;
+                    if(calidad.length > 0 && errorCode > VAL_CAL_SIN_QUO) errorCode = VAL_CAL_SIN_QUO;
                     
-                    histo = getHistoricos(historicos,idCiq);
+                    histo = getHis(hiss,idCiq);
                 }
 
                 // obtener la fecha más atigua, sin contar los codigos de negocio que no se espera progresen 0, 1  y 2
-                if(createdDate < masAntigua && errorCode != 0 && errorCode != 1 && errorCode != 2) masAntigua = createdDate;
+                if(createdDate < masAntigua && errorCode != VAL_CIQ_SIN_CASE && errorCode != VAL_EXC_EVEREST && errorCode != VAL_BONO_SOCIAL) masAntigua = createdDate;
 
                 if(errorCode<50) {
                     sinCIO++;
@@ -300,13 +406,19 @@ function calculate() {
                         sinPedido++;
                         cioResult.set(idCase, idQuote);
                     }
+                    // Datos del segundo informe
+                    segundoInformeId.push(idCiq);
+                    if(asset != "") segundoInformeAsset.push(asset);
                 }
             }
         }
     }
     console.log("Look for cases: END");
     
-    // Desplegamos el resultado
+    
+    
+    
+    ////////////// Mostrar resultados en página
     console.log("KO["+sinPedidoCasos+"](Cases["+sinPedido+"]) OK["+sinCIO+"] fecha más antigua["+masAntigua+"]");
     console.log(codeResult);
     resultado.appendChild(parrafo("CIQ registradas: "+ (conPedido + sinPedidoCasos + sinCIO)));
@@ -314,110 +426,76 @@ function calculate() {
     resultado.appendChild(parrafo("CIQ sin CIO OK: "+ sinCIO));
     resultado.appendChild(parrafo("CIQ sin CIO KO: "+ sinPedidoCasos + " (con Case Repetido:"+sinPedido+")"));
     resultado.appendChild(tablaResultante(cioResult));
+    resultado.appendChild(parrafo("Datos para segundo informe"));
+    resultado.appendChild(tablaSegundoInforme(segundoInformeId,segundoInformeAsset));
 
     // reactivamos botones de descarga de CSVs
     document.getElementById("getCsvKO").disabled = false;
     document.getElementById("getCsvOK").disabled = false;
 }
 
-function getMensaje(errorCode) {
-    if(!codeResult[errorCode]) codeResult[errorCode]=0;
-    codeResult[errorCode]++;
-    switch(errorCode) {
-        case 0:
-            return "["+errorCode+"] CIQ sin Caso asignado";
-        case 1:
-            return "["+errorCode+"] Casos en Everest pendiente de cancelacion";
-		case 2:
-            return "["+errorCode+"] Bonos Sociales no generan CIO";
-        case 3:
-            return "["+errorCode+"] Necesidad pendiente de Batch";
-        case 4:
-            return "["+errorCode+"] Caso de Calidad o Documentacion pendiente de finalizar";
-        case 5:
-        case 6:
-        case 7:
-            return "["+errorCode+"] Pendiente formalizar nuevamente tras rechazo de caso de Calidad o Documentacion";
-        case 8:
-            return "["+errorCode+"] Tienen casos de calidad pendientes sobre formalizados";
-        case 9:
-            return "["+errorCode+"] Tienen casos de calidad pendientes";
-        case 10:
-            return "["+errorCode+"] Tienen casos de documentación pendientes";
-        case 11:
-            return "["+errorCode+"] Ya hay cios en esta necesidad";
-        case 12:
-            return "["+errorCode+"] Quote con estado distinto de CRM_Transfer_Pending sobre CIO Formalizado";
-        case 13:
-            return "["+errorCode+"] Necesidad con Quote en estado inconsistente";
-        case 14:
-            return "["+errorCode+"] Proceso de creación de CIO finalizado";
-		case 15:
-            return "["+errorCode+"] Bonos Sociales no generan CIO sobre no formalizados"
-        case 50:
-            return "["+errorCode+"] Muchos ciqs en la misma necesidad";
-        case 51:
-            return "["+errorCode+"] Validaciones de CC y CD saltadas";
-        case 52:
-            return "["+errorCode+"] Quote CRM_Transfer_Pending sobre CIQ Cancelled";
-        case 100:
-            return "["+errorCode+"] OK relanzar";
-        default:
-            return "["+errorCode+"] Error desconocido";
+
+
+
+/**
+ * Validación de entrada y gestión de pagina
+ * Getión de datos (Sort)
+ */
+function validate() {
+    let validated = true;
+    ficherosV1.forEach(function(fchName) {
+        if(!files.has(`file${fchName}`)) {
+            validated = false;
+        }
+    });
+
+    if(!validated) {
+        ficherosV1.forEach(function(fchName) {
+            document.getElementById(`clean${fchName}`).disabled = false;
+        });
+        document.getElementById("cleanAll").disabled = false;
+		dropState = true;
+        let res = document.createTextNode("Faltan archivos por subir o aun se estan procesando");
+        resultado.appendChild(res);
+        return false;
     }
+    console.log("Valitations OK");
+    return true;
 }
 
-function getHistoricos(historicos,idCiq) {
+function sorter(fileElements,keyCol) {
+    let idCol = 0;
+    fileElements.sort(function(a,b) {
+        // encabezados siempre arriba
+        if(a[idCol] == "_") return -1;
+        if(b[idCol] == "_") return 1;
+        // sort de javascript que el de salesforce va como el culo
+        return a[keyCol].toLowerCase().localeCompare(b[keyCol].toLowerCase());
+        });	
+}
+
+
+
+
+/**
+ * Revisión de informes
+ */
+function getHis(his,idCiq) {
     let msgCiq = "";
     let msgCase = "";
-    for(var i=0;i<historicos.length;i++) {
-        var hist = historicos[i];
+    for(var i=0;i<his.length;i++) {
+        var hist = his[i];
 
         var caseHist = hist.length-1; // buscamos el último informado
-        while(hist[caseHist]=="")caseHist--;
+        while(hist[caseHist]=="" && caseHist > 0)caseHist--;
 
         if(i==0) msgCase = hist[caseHist];
-        if(hist[getKeyCol("ciq")]==idCiq) {
+        if(hist[getKeyCol("his")]==idCiq) {
             msgCiq = hist[caseHist-1];
             msgCase = hist[caseHist];
         }
     }
     return [msgCiq,msgCase];
-}
-
-// Arama la tabla con el resultado
-function tablaResultante(cioResult){
-    let table = document.createElement("table");
-
-    // THead
-    let thead = table.createTHead();
-    let hrow = thead.insertRow();
-    hrow.insertCell().appendChild(document.createTextNode("Id"));
-    hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
-    hrow.insertCell().appendChild(document.createTextNode(" "));
-    hrow.insertCell().appendChild(document.createTextNode("Id"));
-    hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
-    
-    // resto de datos
-    let tBody = table.createTBody();
-    for (let [caseNumber, idQuote] of cioResult.entries()) {
-        let row = tBody.insertRow();
-        row.insertCell().appendChild(document.createTextNode(idQuote));
-        row.insertCell().appendChild(document.createTextNode("In-Transit")); //In Review
-        row.insertCell().appendChild(document.createTextNode(""));
-        row.insertCell().appendChild(document.createTextNode(idQuote));
-        row.insertCell().appendChild(document.createTextNode("CRM_Transfer_Pending"));
-    }
-    
-    return table;
-}
-
-// regresa un parrafo DOM para agregar a algún otro elemento del DOM con el mensaje de entrada
-function parrafo(mensaje) {
-    let para = document.createElement("p");
-    let res = document.createTextNode(mensaje);
-    para.appendChild(res);
-    return para;
 }
 
 // función para buscar el id en busqueda binaria, al encontrarlo busca en un arrglo todos los casos
@@ -473,87 +551,107 @@ function binarySearch(id,arrCSV,column, start, end){
     return binarySearch(id,arrCSV,column, mid+1, end);
 }
 
-// Aquí convertimos el fichero en texto e inicializamos las variables para trabajar los datos
-function fileCSVToArray(file,elementId) {
-    console.log("Reading: "+elementId);
-    var fr = new FileReader();
-	fr.onload = function() {
-		document.getElementById(elementId + "Text").innerHTML = "Pocessing... <img src='img/pocessing.png' width='20' height='20' >";
-       	
-		// el timeout es solo para que pinte los estados
-		setTimeout(function () {
-			
-			var fileText = fr.result;
-			console.log("Procesing: "+elementId);
-			var arrprocesado = CSVToArray(fileText);
-			files.set(elementId,arrprocesado);
-			console.log("Done: "+elementId);
-			document.getElementById(elementId + "Text").innerHTML = file.name+" <img src='img/check.png' width='20' height='20' >";
-			
-		}, 10);
-    }
-    fr.readAsText(file); //,"ISO-8859-1");
-}
-
 // A cada resultado del fichero hay una columna clave de comparación aqui se define ese campo
 function getKeyCol(elementId) {
 	var eId = elementId.toLowerCase();
-	if(eId.startsWith("file")) eId = eId.substring(4);
-	switch(eId) {
-		case "ciq":
-        	return 1;
-		case "cio":
-        case "neq":
-        case "ciqquote":
-        case "documentacionciqid":
-			return 2;
-		case "exceptions":
-            return 3;
-        case "ciqcase":
-        case "ciocase":
-            return 4;
-        case "neqstatus":
-            return 6;
-        case "ciqquotestatus":
-            return 8;
-        case "ciqstatus":
-            return 9;
-        case "documents":
-            return 11;
-        case "ciqcratedate":
-            return 14;
-        case "ciqflgsendorder":
-            return 20;
-        case "ciqbono":
-            return 29;
-        case "ciqbonoincondicional":
-            return 30;
-        case "ciqvalidacionesok":
-            return 40;
-        case "ciqcalidad":
-            return 42;
-		default:
-            throw "getKeyCol["+elementId+"] desconocida";
-			return 0;
-	}
+    if(eId.startsWith("file")) eId = eId.substring(4);
+    var tabla = eId.substring(0,3);
+    var campo = "main";
+    if(eId.length>3) campo = eId.substring(3);
+
+    var arrTabla=columnDistribution[tabla];
+    if(arrTabla == null) throw `getKeyCol[${elementId}] con tabla[${tabla}] desconocida`;
+
+    for(var i=0;i<arrTabla.length;i++) {
+        if(arrTabla[i].alias == campo) return i+1; // es importante el +1 pues 0 siempre es "_"
+    }
+
+    throw `getKeyCol[${elementId}] con tabla[${tabla}] campo[${campo}] desconocida`;
 }
 
-// donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
-function CSVToArray(strData, strDelimiter) {
-    strDelimiter = (strDelimiter || ",");
-    var arrData1row = strData.split("\r\n");
-    var arrData = [];
-    for(row of arrData1row){
-        var cols = row.split(strDelimiter);
-        for(var i = 0;i<cols.length;i++) {
-            var col = cols[i];
-            if(col.charAt(0) == '"' && col.charAt(col.length-1) == '"' ) {
-                cols[i] = col.substr(1,col.length-2);
-            }
+
+/**
+ * Mostrar resultados en página
+ * Grupo de funciones y métodos para gestionar y mostrar el resultado final
+ */
+// funciones de validación y gestión sobre la principal
+function getMensaje(errorCode) {
+    if(!codeResult[errorCode]) codeResult[errorCode]=0;
+    codeResult[errorCode]++;
+
+    let mesage = "Error desconocido";
+
+    validaciones.forEach(function(validacion){
+        if(errorCode == validacion.priority) {
+            mesage = validacion.description;
         }
-        arrData.push(cols);
+    });
+
+    return `[${errorCode}] ${mesage}`;
+}
+
+// Gestión de resultado
+function tablaResultante(cioResult){
+    let table = document.createElement("table");
+
+    // THead
+    let thead = table.createTHead();
+    let hrow = thead.insertRow();
+    hrow.insertCell().appendChild(document.createTextNode("Id"));
+    hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
+    hrow.insertCell().appendChild(document.createTextNode(" "));
+    hrow.insertCell().appendChild(document.createTextNode("Id"));
+    hrow.insertCell().appendChild(document.createTextNode("NE__Status__c"));
+    
+    // resto de datos
+    let tBody = table.createTBody();
+    for (let [caseNumber, idQuote] of cioResult.entries()) {
+        let row = tBody.insertRow();
+        row.insertCell().appendChild(document.createTextNode(idQuote));
+        row.insertCell().appendChild(document.createTextNode("In-Transit")); //In Review
+        row.insertCell().appendChild(document.createTextNode(""));
+        row.insertCell().appendChild(document.createTextNode(idQuote));
+        row.insertCell().appendChild(document.createTextNode("CRM_Transfer_Pending"));
     }
-    return arrData;
+    
+    return table;
+}
+
+function tablaSegundoInforme(segundoInformeId, segundoInformeAsset) {
+    let table = document.createElement("table");
+
+    // THead
+    let thead = table.createTHead();
+    let hrow = thead.insertRow();
+    hrow.insertCell().appendChild(document.createTextNode("Id"));
+    hrow.insertCell().appendChild(document.createTextNode(" "));
+    hrow.insertCell().appendChild(document.createTextNode("Assets"));
+    
+    // resto de datos
+    let tBody = table.createTBody();
+    let idMax = segundoInformeId.length;
+    let assetMax = segundoInformeAsset.length;
+    let max = Math.max(idMax, assetMax);
+    for (var i=0;i<max;i++) {
+        let row = tBody.insertRow();
+        var idVal = "";
+        if(i<idMax) idVal = segundoInformeId[i];
+        var assetVal = "";
+        if(i<assetMax) assetVal = segundoInformeAsset[i];
+        row.insertCell().appendChild(document.createTextNode(idVal));
+        row.insertCell().appendChild(document.createTextNode(""));
+        row.insertCell().appendChild(document.createTextNode(assetVal));
+    }
+    
+    return table;
+}
+
+// regresa un parrafo DOM para agregar a algún otro elemento del DOM con el mensaje de entrada
+function parrafo(mensaje) {
+    let para = document.createElement("p");
+    let res = document.createTextNode(mensaje);
+    para.appendChild(res);
+    return para;
 }
 
 // Crea el CSV ya filtrado
@@ -593,6 +691,111 @@ function saveCSVOK() {
     buttonSelection.removeChild(element);
 }
 
+
+
+
+/**
+ * Gestión de ficheros
+ */
+function clean(element) {
+    let elementId = element.id;
+    if(elementId.startsWith("clean")) elementId = elementId.substring(5);
+
+    if(elementId == "All") {
+        files.clear();
+        ficherosV1.forEach(function(val){
+            let element = `file${val}Text`;
+            document.getElementById(element).innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+        });
+    }
+    else {
+        files.delete("file"+elementId);
+        document.getElementById("file"+elementId+"Text").innerHTML= "Drag and drop here...<br><img src='img/doc.png' width='20' height='20' >";
+    }
+}
+
+function fileHandler(file,elementId) {
+	if(file.name.substr(file.name.length - 4) != ".csv" ) {
+        alert("La extensión debe ser .csv");
+        return false;
+    }
+    document.getElementById(elementId+"Text").innerHTML= "LOADING FILE...  <img src='img/rainbow.png' height='20' >";
+    fileCSVToArray(file,elementId+"");
+    console.log('saving file.name['+file.name+'] on['+elementId+']');
+}
+
+//Drop invididual
+function dropHandler(ev,element) {
+	console.log('File(s) dropped');
+
+    // Prevent default behavior (Prevent file from being opened)
+    ev.preventDefault();
+	
+	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
+	
+    if (ev.dataTransfer.items) {
+        // Use DataTransferItemList interface to access the file(s)
+        for(var i = 0;i<ev.dataTransfer.items.length;i++){
+            if (ev.dataTransfer.items[i].kind === 'file') {
+                var file = ev.dataTransfer.items[i].getAsFile();
+                fileHandler(file,element.id);
+            }
+        }
+    // Use DataTransfer interface to access the file(s)
+    } else if (ev.dataTransfer.files.length > 0) {
+        for(var i = 0;i<ev.dataTransfer.files.length;i++){
+            var file = ev.dataTransfer.files[i];
+            fileHandler(file,element.id);
+        }
+    }
+	
+    // Pass event to removeDragData for cleanup
+    removeDragData(ev);
+}
+
+// Drop de varios ficheros
+function dropHandlerAll(ev) {
+	console.log('File(s) dropped');
+
+    // Prevent default behavior (Prevent file from being opened)
+    ev.preventDefault();
+	
+    if(!dropState) { alert("Can't drop files in this state, you have to refresh the page");	removeDragData(ev); return false; }
+
+    if (ev.dataTransfer.items) {
+        // Use DataTransferItemList interface to access the file(s)
+        for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+            if (ev.dataTransfer.items[i].kind === 'file') {
+                var file = ev.dataTransfer.items[i].getAsFile();
+                let elementId = dafaultElementId(file.name);
+                if (elementId == "") continue;
+				fileHandler(file,elementId);
+            }
+        }
+
+    // Use DataTransfer interface to access the file(s)
+    } else {
+        for (var i = 0; i < ev.dataTransfer.files.length; i++) {
+            var file = ev.dataTransfer.files[i];
+            let elementId = dafaultElementId(file.name);
+            if (elementId == "") continue;
+			fileHandler(file,elementId);
+        }
+    } 
+
+    // Pass event to removeDragData for cleanup
+    removeDragData(ev);
+}
+
+function dafaultElementId(fileName) {
+    if(fileName.substring(fileName.length-4) == ".csv") {
+        let filen = fileName.substring(0,fileName.length-4);
+        filen = filen.toUpperCase();
+        if(ficherosV1.includes(filen)) return `file${filen}`;
+    }
+	return "";
+}
+
 // Cosas del gragAndDrop que hice copy/paste npi que hagan
 function dragOverHandler(ev) {
     // Prevent default behavior (Prevent file from being opened)
@@ -609,4 +812,86 @@ function removeDragData(ev) {
         // Use DataTransfer interface to remove the drag data
         ev.dataTransfer.clearData();
     }
+}
+
+// Aquí convertimos el fichero en texto e inicializamos las variables para trabajar los datos
+function fileCSVToArray(file,elementId) {
+    console.log("Reading: "+elementId);
+    var fr = new FileReader();
+	fr.onload = function() {
+		document.getElementById(elementId + "Text").innerHTML = "Pocessing... <img src='img/pocessing.png' width='20' height='20' >";
+       	
+		// el timeout es solo para que pinte los estados
+		setTimeout(function () {
+			
+			var fileText = fr.result;
+            console.log("Procesing: "+elementId);
+            var arrAnt = files.get(elementId);
+            arrAnt = (arrAnt || []);
+            var arrprocesado = CSVToArray(fileText,null,elementId, file.name);
+            //arrprocesado = reacomoda(arrprocesado, elementId, file.name);
+            if(arrAnt.length>0) {
+                arrprocesado.shift(); // se quitan los encabezados
+                arrprocesado = arrAnt.concat(arrprocesado);
+            }
+			files.set(elementId,arrprocesado);
+			console.log("Done: "+elementId);
+			document.getElementById(elementId + "Text").innerHTML = "Last file: "+file.name+"["+arrprocesado.length+"] <img src='img/check.png' width='20' height='20' >";
+			
+		}, 10);
+    }
+    fr.readAsText(file); //,"ISO-8859-1");
+}
+
+function reacomoda(arrTittles,elementId,filename) {
+    if(arrTittles == null || arrTittles.length == 0) return [];
+    let eId = elementId.toLowerCase();
+    if(eId.startsWith("file")) eId = eId.substring(4);
+    let arrCampos = columnDistribution[eId];
+    if(arrCampos == null) throw `reacomodaCIQ sin columnDistribution para [${eId}] (original[${elementId}] file[${filename}])`;
+    var ordenCampos = [0]; // la columna 0 siempre se mantiene
+    for(var i=0;i<arrCampos.length;i++) {
+        var encontrado = false;
+        let campo = arrCampos[i].tabla;
+        for(var j=0;j<arrTittles.length&&!encontrado;j++) {
+            var col = arrTittles[j];
+            if(col.charAt(0) == '"' && col.charAt(col.length-1) == '"' ) {
+                arrTittles[j] = col.substr(1,col.length-2);
+            }
+            if(campo == arrTittles[j]) {
+                encontrado = true;
+                ordenCampos.push(j);
+            }
+        }
+        if(!encontrado) throw `Para el fichero[${filename}] no se encuentra la columna[${campo}] en la tabla[${eId}]`;
+    }
+    return ordenCampos;
+}
+
+// donde exista ',' dentro de "" la liamos pero en todos los ejemplos que he visto no.
+function CSVToArray(strData, strDelimiter,elementId,filename) {
+    strDelimiter = (strDelimiter || ",");
+    var arrData1row = strData.split("\r\n");
+    var arrData = [];
+    var ordenCampos = [];
+    for(row of arrData1row){
+        var cols = row.split(strDelimiter);
+        var colsRe = [];
+
+        if(cols[0] == '_' || cols[0] == '"_"') {
+            ordenCampos = reacomoda(cols,elementId,filename);
+        }
+        
+        for(var i=0;i<ordenCampos.length;i++) {
+            var pos = ordenCampos[i];
+            var valcol = cols[pos];
+            if(valcol.charAt(0) == '"' && valcol.charAt(valcol.length-1) == '"' ) {
+                valcol = valcol.substr(1,valcol.length-2);
+            }
+            colsRe.push(valcol);
+        }
+        
+        arrData.push(colsRe);
+    }
+    return arrData;
 }
