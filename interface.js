@@ -1,10 +1,4 @@
 // TODO:
-// caso 4 puede ser por:
-// - calidad
-// - documentación
-// - por bono F3A  -- F3A_CI_LKP_Social_Bonus__c, FI_CI_DAT_SocialBonusOK__c si lo tiene es que tiene gestión de bono social
-// - por cups
-// nuevo caso FI_CI_SEL_Access_channel__c == FI_CI_LKP_Quote__r.Access_channel__c tienen que ser iguales
 // solo un order por need
 // segunda vuelta
 
@@ -15,6 +9,7 @@ var files = new Map(); // Datos de un fichero
 var csvResultKO = []; // Resultado guardado para descargar el CSV final de casos KO
 var csvResultOK = []; // Resultado guardado para descargar el CSV final de casos OK
 var dropState = true; // Estado en que se puede agregar ficheros
+var dropState2 = false; // Estado en que se puede agregar ficheros
 var codeResult = [];
 var segundoInformeId = [];
 var segundoInformeAsset = [];
@@ -34,12 +29,13 @@ const VAL_W_TMQ        = 50;  // muchas CIQS "Muchos ciqs en la misma necesidad"
 const VAL_W_OK         = 100;
 
 const ficherosV1 = ["CIQ","CIO","HIS","NEQ","CAL","DOC","EXC"];
+const ficherosV2 = ["ORD","REC","ATR","EXT","CTR"];
 
 // Validaciones:
 let validaciones = [
     {
-        priority: VAL_CIQ_SIN_CASE, description: "CIQ sin Caso asignado",
-        validate: function(ciqStatus, ciqh) { return false; }
+        priority: VAL_CIQ_SIN_CASE, description: "CIQ sin necesidad",
+        validate: function(ciqStatus, ciqh) { return false; } // CIQs mal Cancelar estos casos
     }, {
         priority:VAL_EXC_EVEREST, description: "Casos en Everest pendiente de cancelacion",
         validate: function(ciqStatus, ciqh) { return false; }
@@ -52,12 +48,12 @@ let validaciones = [
         }
     }, {
         priority: VAL_PTE_BATCH, description: "Necesidad pendiente de Batch",
-        validate: function(ciqStatus,ciqh) { 
-            return ciqStatus == "Pending"; 
+        validate: function(ciqStatus,ciqh) {  // para los casos Bulk regularizamos nosotros de pending a CMR_T_P
+            return ciqStatus == "Pending";    // El resto de casos cancelamos
         }
     }, {
 		priority: 4, description: "Caso de Calidad o Documentacion pendiente de finalizar",
-        validate: function(ciqStatus,ciqh) { 
+        validate: function(ciqStatus,ciqh) {
             let ciqQuoteStatus = ciqh[getKeyCol("ciqQuoteStatus")];
             return ciqStatus == "In Review" && ciqQuoteStatus == "In-Transit"; 
         }
@@ -272,7 +268,7 @@ function calculate() {
     csvResultOK = [];
 
     // validaciones
-    if(!validate()) return false;
+    if(!validate(true)) return false;
 	
     
     
@@ -432,6 +428,12 @@ function calculate() {
     // reactivamos botones de descarga de CSVs
     document.getElementById("getCsvKO").disabled = false;
     document.getElementById("getCsvOK").disabled = false;
+
+    // activa segunda fase
+    dropState2 = true;
+    ficherosV2.forEach(function(fchName) {
+        document.getElementById(`clean${fchName}`).disabled = false;
+    });
 }
 
 
@@ -441,13 +443,21 @@ function calculate() {
  * Validación de entrada y gestión de pagina
  * Getión de datos (Sort)
  */
-function validate() {
+function validate(fase1) {
     let validated = true;
-    ficherosV1.forEach(function(fchName) {
-        if(!files.has(`file${fchName}`)) {
-            validated = false;
-        }
-    });
+    if(fase1) { 
+        ficherosV1.forEach(function(fchName) { 
+            if(!files.has(`file${fchName}`)) {
+                validated = false;
+            }
+        });
+    } else { 
+        ficherosV2.forEach(function(fchName) { 
+            if(!files.has(`file${fchName}`)) {
+                validated = false;
+            }
+        });
+    }
 
     if(!validated) {
         ficherosV1.forEach(function(fchName) {
@@ -730,8 +740,20 @@ function dropHandler(ev,element) {
 
     // Prevent default behavior (Prevent file from being opened)
     ev.preventDefault();
+    
+    // fileCRTText
+    let eltxt = element.id.substring(4,6);
+    if(ficherosV1.contains(eltxt) && !dropState) { 
+        alert("Can't drop after generate process");	
+        removeDragData(ev); 
+        return false; 
+    }
+    if(ficherosV2.contains(eltxt) && !dropState2) { 
+        alert("Can't drop before generate process");	
+        removeDragData(ev); 
+        return false; 
+    }
 	
-	if(!dropState) { alert("Can't drop afer generate process");	removeDragData(ev); return false; }
 	
     if (ev.dataTransfer.items) {
         // Use DataTransferItemList interface to access the file(s)
@@ -754,13 +776,22 @@ function dropHandler(ev,element) {
 }
 
 // Drop de varios ficheros
-function dropHandlerAll(ev) {
+function dropHandlerAll(ev,element) {
 	console.log('File(s) dropped');
 
     // Prevent default behavior (Prevent file from being opened)
     ev.preventDefault();
 	
-    if(!dropState) { alert("Can't drop files in this state, you have to refresh the page");	removeDragData(ev); return false; }
+    if(element.id=="fileAll" &&!dropState) { 
+        alert("Can't drop after generate process");	
+        removeDragData(ev); 
+        return false; 
+    }
+    if(element.id=="fileAll2" &&!dropState2) { 
+        alert("Can't drop before generate process");	
+        removeDragData(ev); 
+        return false; 
+    }
 
     if (ev.dataTransfer.items) {
         // Use DataTransferItemList interface to access the file(s)

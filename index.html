@@ -100,5 +100,81 @@
                 </div>
             </div>
         </div>
+        <hr>
+        <div style="display: table;">
+            <div style="width:200px; float: left;">&nbsp;</div>
+            <div style="width:fit-content; float: left;">
+                <div> 
+                    <span>ORD: </span>
+                    <div id="fileORD" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileORDText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
+                    </div>
+                    <div>
+                        <input type="button" id="cleanORD" value="Clean ORD" onclick="clean(this)" disabled="true">
+                    </div>
+                </div>
+            </div>
+            <div style="width:fit-content; float: left;">
+                <div> 
+                    <span>REC: </span>
+                    <div id="fileREC" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileRECText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
+                    </div>
+                    <div>
+                        <input type="button" id="cleanREC" value="Clean REC" onclick="clean(this)" disabled="true">
+                    </div>
+                </div>
+            </div>
+            <div style="width:fit-content; float: left;">
+                <div> 
+                    <span>ATR: </span>
+                    <div id="fileATR" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileATRText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
+                    </div>
+                    <div>
+                        <input type="button" id="cleanATR" value="Clean ATR" onclick="clean(this)" disabled="true">
+                    </div>
+                </div>
+            </div>
+            <div style="width:fit-content; float: left;">
+                <div> 
+                    <span>EXT: </span>
+                    <div id="fileEXT" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileEXTText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
+                    </div>
+                    <div>
+                        <input type="button" id="cleanEXT" value="Clean EXT" onclick="clean(this)" disabled="true">
+                    </div>
+                </div>
+            </div>
+            <div style="width:fit-content; float: left;">
+                <div> 
+                    <span>CRT: </span>
+                    <div id="fileCRT" ondrop="dropHandler(event,this);" ondragover="dragOverHandler(event);" class="drop_zone" >
+                        <p id="fileCRTText">Drag and drop here...<br><img src='img/doc.png' width='20' height='20' ></p>
+                    </div>
+                    <div>
+                        <input type="button" id="cleanCRT" value="Clean CRT" onclick="clean(this)" disabled="true">
+                    </div>
+                </div>
+            </div>
+            <div id="resultado2" style="width:auto; float: left;">&nbsp;</div>
+            <div style="width:fit-content; float: left; margin-left: 10px;"> 
+                <span>O arrastra todo por nombre exacto: </span>
+                <div id="fileAll2" ondrop="dropHandlerAll(event,this);" ondragover="dragOverHandler(event);" class="drop_zone_all" >
+                    <p> Drag and drop here...
+						<br>ord.csv
+						<br>rec.csv
+                        <br>atr.csv
+                        <br>ext.csv
+						<br>ctr.csv
+						<br><br><img src='img/doc.png' width='20' height='20' ><img src='img/doc.png' width='20' height='20' ><img src='img/doc.png' width='20' height='20' >
+					</p>
+                </div>
+                <div>
+                    <input type="button" id="cleanAll" value="Clean All" onclick="clean(this)" disabled="true">
+                </div>
+            </div>
+        </div>
     </body>
 </html>
