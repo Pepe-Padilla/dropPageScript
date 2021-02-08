@@ -153,7 +153,7 @@ let validaciones = [
         validate: function(ciqStatus,ciqh) {
             let ciqQuoteAccessChannel = ciqh[getKeyCol("ciqQuoteAccessChannel")];
             let ciqAccessChannel = ciqh[getKeyCol("ciqAccessChannel")];
-            return ciqStatus == "Formalized" && ciqQuoteAccessChannel != ciqAccessChannel;
+            return ciqStatus == "Formalized" && ciqQuoteAccessChannel != ciqAccessChannel && ciqQuoteAccessChannel != "";
         }
     }, {
 		priority: VAL_W_TMQ, description: "Muchos ciqs en la misma necesidad",
